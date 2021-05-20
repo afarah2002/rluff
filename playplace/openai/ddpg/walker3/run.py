@@ -194,6 +194,17 @@ def torque_generator(last_proj_curves, f_primes, t):
 
 	return new_proj_curve + .01
 
+all_f_primes = [np.zeros(4)]
+def smart_torque_generator(f_primes, t, reward):
+	# only multiplies e^reward by the most recent f' set
+	all_f_primes[-1]*np.exp(reward)
+	all_f_primes.append(f_primes)
+	product = np.outer(all_f_primes, t).reshape(len(all_f_primes), 4, len(t))
+	new_terms = np.sin(product)
+	new_proj_curve = np.sum(new_terms, axis=0)
+
+	return new_proj_curve+ 0.01
+
 std_dev = 0.2
 ou_noise = OUActionNoise(mean=np.zeros(1), std_deviation=float(std_dev) * np.ones(1))
 
@@ -228,11 +239,12 @@ ep_reward_list = []
 avg_reward_list = []
 
 f_0 = 5
-f_s = 200
+f_s = 100
 t = np.linspace(0,2*np.pi,f_s, endpoint=False)
 T_0s = np.zeros((num_actions, len(t)))
 f_0s = np.tile(f_0, num_actions)
-T_init = torque_generator(T_0s, f_0s, t)
+# T_init = torque_generator(T_0s, f_0s, t) # dumb torques
+T_init = smart_torque_generator(f_0s, t, 0) # smart torques
 
 print("initial torques: " , T_init)
 torques = T_init
@@ -267,14 +279,14 @@ try:
 					print(" \n ASK \n")
 					# at the end, ask the policy for four new frequencies
 					f_primes = np.abs(policy(tf_prev_state, ou_noise))
-					torques = torque_generator(np.exp(episodic_reward/100)*torques, f_primes, t)
+					# torques = torque_generator(np.exp(episodic_reward/100)*torques, f_primes, t)
+					torques = smart_torque_generator(f_primes, t, reward)
 
 				torques_set = torques[:,i]
 				t = np.linspace(t[int(f_s/2)], t[int(f_s/2)] + 2*np.pi, f_s, endpoint=False)
 
 				action = torques_set
-
-
+				
 				# Recieve state and reward from environment.
 				try:
 					state, reward, done, info = env.step(action)
@@ -283,7 +295,7 @@ try:
 
 				buffer.record((prev_state, action, reward, state))
 				episodic_reward += reward
-				print(cycle_counter)
+				print(torques_set)
 
 				buffer.learn()
 				update_target(target_actor.variables, actor_model.variables, tau)
