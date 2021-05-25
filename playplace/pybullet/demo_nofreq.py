@@ -1,20 +1,42 @@
-import gym
+import gym 
+import pybullet_envs
+import pybullet as p
+import time
+import math
+
+
+# it is different from how MuJoCo renders environments
+# it doesn't differ too much to me w/ and w/o mode='human'
 import tensorflow as tf
 from tensorflow.keras import layers
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
 import random
+p.connect(p.DIRECT)
+
+# check the link below for some common environments
+# https://github.com/bulletphysics/bullet3/releases
 
 env_name = "BipedalWalker-v3"
+# env_name = 'AntBulletEnv-v0'
+# env_name = "HalfCheetahBulletEnv-v0"
+# env_name = "Walker2DBulletEnv-v0"
+# env_name = "HopperBulletEnv-v0"
+# env_name = "MinitaurBulletEnv-v0"
+# env_name = "InvertedPendulumBulletEnv-v0"
+
 
 env = gym.make(env_name)
+
+# env.render()
+
 
 num_states = env.observation_space.shape[0]
 num_actions = env.action_space.shape[0]
 
-upper_bound = 10.
-lower_bound = 1.
+upper_bound = env.action_space.high[0]
+lower_bound = env.action_space.low[0]
 
 class OUActionNoise:
 	'''
@@ -140,7 +162,7 @@ def update_target(target_weights, weights, tau):
 def get_actor():
 	# Initialize weights between -3e-3 and 3-e3
 	last_init = tf.random_uniform_initializer(minval=-0.003, maxval=0.003)
-
+	
 	inputs = layers.Input(shape=(num_states,))
 	out = layers.Dense(256, activation="relu")(inputs)
 	out = layers.Dense(256, activation="relu")(out)
@@ -184,31 +206,6 @@ def policy(state, noise_object):
 	legal_action = np.clip(sampled_actions, lower_bound, upper_bound)
 
 	return list(np.squeeze(legal_action))
-
-
-def torque_generator(last_proj_curves, f_primes, t):
-	# get product of fs and ts (inner term of sine)
-	product = np.outer(f_primes, t)
-	# get new sine terms
-	new_terms = np.sin(product) + np.cos(product)
-	# add new terms to old curves
-	new_proj_curve = np.add(last_proj_curves, new_terms)
-
-	return new_proj_curve + .01
-
-all_f_primes = [np.zeros(4)]
-def smart_torque_generator(f_primes, t, reward):
-	# all_f_primes[-1]
-	all_f_primes.append(f_primes)
-	product = np.outer(all_f_primes, t).reshape(len(all_f_primes), 4, len(t))
-	new_terms = np.sin(product)
-
-	# only multiplies e^reward by the most recent sin(f't) set (before the new one)
-	new_terms[-2,:]*np.exp(reward/100)
-	new_proj_curve = np.sum(new_terms, axis=0)
-
-	return new_proj_curve + 0.01
-
 		
 
 std_dev = 0.2
@@ -231,7 +228,7 @@ actor_lr = 0.001
 critic_optimizer = tf.keras.optimizers.Adam(critic_lr)
 actor_optimizer = tf.keras.optimizers.Adam(actor_lr)
 
-total_episodes = 1000
+total_episodes = 100
 # Discount factor for future rewards
 gamma = 0.99
 # Used to update target networks
@@ -244,84 +241,40 @@ ep_reward_list = []
 # To store average reward history of last few episodes
 avg_reward_list = []
 
-f_0 = 5
-f_s = 100
-f_primes = [random.uniform(lower_bound, upper_bound) for i in range(num_actions)]
-t = np.linspace(0,2*np.pi,f_s, endpoint=False)
-T_0s = np.zeros((num_actions, len(t)))
-f_0s = np.tile(f_0, num_actions)
-T_init = torque_generator(T_0s, f_0s, t) # dumb torques
-# T_init = smart_torque_generator(f_0s, t, 0) # smart torques
-
-print("initial torques: " , T_init)
-torques = T_init
-cycle_counter = 0
-max_cycles = 3
 
 try:
 	for ep in range(total_episodes):
 
 		prev_state = env.reset()
 		episodic_reward = 0
-		reward = 0
+		# reward = 0
 
 		while True:
+			# time.sleep(1./60.)
 			# Uncomment this to see the Actor in action
 			# But not in a python notebook.
-			# env.render()
+			env.render()
 
 			tf_prev_state = tf.expand_dims(tf.convert_to_tensor(prev_state), 0)
 
-			# set Torques in action space to be initial torque
-			# run torques as actions until the end
-			for i in range(len(t)):
-				env.render()
-				# print(cycle_counter)
-				if i == len(t) - 1:
-					cycle_counter += 1
+			action = np.abs(policy(tf_prev_state, ou_noise))
 
-				if cycle_counter >= max_cycles:
-					cycle_counter = 0
-					# if episodic_reward > ep_reward_list[-1]:
-					# 	max_cycles += 1
-					# max_cycles -= 1
-					print(" \n ASK \n")
-					# at the end, ask the policy for four new frequencies
-					try:
-						f_primes = np.abs(policy(tf_prev_state, ou_noise))
-					except:
-						f_primes = np.tile(f_0, num_actions)
-					
-					torques = np.exp(episodic_reward/100)*torques[-1]
+			# Recieve state and reward from environment.
+			# try:
+			state, reward, done, info = env.step(action)
+			# except:
+			# 	break
 
-					torques = torque_generator(torques, f_primes, t)
+			buffer.record((prev_state, action, reward, state))
+			episodic_reward += reward
+			# print(torques_set)
 
-					# torques = smart_torque_generator(f_primes, t, reward)
-
-				torques_set = torques[:,i]
-				torques_set = np.interp(torques_set, (torques.min(), torques.max()), (-1, +1))
-				# t = np.linspace(t[int(f_s/2)], t[int(f_s/2)] + 2*np.pi, f_s, endpoint=False)
-				t = np.linspace(max(t), max(t) + 2*np.pi, f_s, endpoint=False)
-
-				print(episodic_reward, "  f' = ", f_primes, "torques = ", torques_set)
-				action = torques_set
-
-				# Recieve state and reward from environment.
-				try:
-					state, reward, done, info = env.step(action)
-				except:
-					break
-
-				buffer.record((prev_state, action, reward, state))
-				episodic_reward += reward
-				# print(torques_set)
-
-				buffer.learn()
-				update_target(target_actor.variables, actor_model.variables, tau)
-				update_target(target_critic.variables, critic_model.variables, tau)
+			buffer.learn()
+			update_target(target_actor.variables, actor_model.variables, tau)
+			update_target(target_critic.variables, critic_model.variables, tau)
 
 			# End this episode when `done` is True
-			if done and cycle_counter >= 1:
+			if done:
 				break
 
 			prev_state = state

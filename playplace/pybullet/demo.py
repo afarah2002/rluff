@@ -1,19 +1,42 @@
-import gym
+import gym 
+import pybullet_envs
+import pybullet as p
+import time
+import math
+
+
+# it is different from how MuJoCo renders environments
+# it doesn't differ too much to me w/ and w/o mode='human'
 import tensorflow as tf
 from tensorflow.keras import layers
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
 import random
+p.connect(p.DIRECT)
 
-env_name = "BipedalWalker-v3"
+# check the link below for some common environments
+# https://github.com/bulletphysics/bullet3/releases
+
+# env_name = "BipedalWalker-v3"
+# env_name = 'AntBulletEnv-v0'
+env_name = "HalfCheetahBulletEnv-v0"
+# env_name = "Walker2DBulletEnv-v0"
+# env_name = "HopperBulletEnv-v0"
+# env_name = "MinitaurBulletEnv-v0"
+# env_name = "InvertedPendulumBulletEnv-v0"
+
 
 env = gym.make(env_name)
+
+env.render()
+env.reset()
+
 
 num_states = env.observation_space.shape[0]
 num_actions = env.action_space.shape[0]
 
-upper_bound = 10.
+upper_bound = 100.
 lower_bound = 1.
 
 class OUActionNoise:
@@ -49,7 +72,7 @@ class OUActionNoise:
 
 
 class Buffer:
-	def __init__(self, buffer_capacity=100000, batch_size=64):
+	def __init__(self, buffer_capacity=100000, batch_size=999):
 		# Number of "experiences" to store at max
 		self.buffer_capacity = buffer_capacity
 		# Num of tuples to train on.
@@ -196,15 +219,15 @@ def torque_generator(last_proj_curves, f_primes, t):
 
 	return new_proj_curve + .01
 
-all_f_primes = [np.zeros(4)]
+all_f_primes = [np.zeros(num_actions)]
 def smart_torque_generator(f_primes, t, reward):
 	# all_f_primes[-1]
 	all_f_primes.append(f_primes)
-	product = np.outer(all_f_primes, t).reshape(len(all_f_primes), 4, len(t))
-	new_terms = np.sin(product)
+	product = np.outer(all_f_primes, t).reshape(len(all_f_primes), num_actions, len(t))
+	new_terms = np.sin(product) + np.cos(product)
 
 	# only multiplies e^reward by the most recent sin(f't) set (before the new one)
-	new_terms[-2,:]*np.exp(reward/100)
+	new_terms[-2,:]*np.exp(reward/10)
 	new_proj_curve = np.sum(new_terms, axis=0)
 
 	return new_proj_curve + 0.01
@@ -231,7 +254,7 @@ actor_lr = 0.001
 critic_optimizer = tf.keras.optimizers.Adam(critic_lr)
 actor_optimizer = tf.keras.optimizers.Adam(actor_lr)
 
-total_episodes = 1000
+total_episodes = 100
 # Discount factor for future rewards
 gamma = 0.99
 # Used to update target networks
@@ -244,20 +267,21 @@ ep_reward_list = []
 # To store average reward history of last few episodes
 avg_reward_list = []
 
-f_0 = 5
-f_s = 100
+# f_0 = 5
+f_s = 500
 f_primes = [random.uniform(lower_bound, upper_bound) for i in range(num_actions)]
 t = np.linspace(0,2*np.pi,f_s, endpoint=False)
 T_0s = np.zeros((num_actions, len(t)))
-f_0s = np.tile(f_0, num_actions)
-T_init = torque_generator(T_0s, f_0s, t) # dumb torques
-# T_init = smart_torque_generator(f_0s, t, 0) # smart torques
+# f_0s = np.tile(f_0, num_actions)
+# T_init = torque_generator(T_0s, f_primes[0], t) # dumb torques
+T_init = smart_torque_generator(f_primes, t, 0) # smart torques
 
 print("initial torques: " , T_init)
 torques = T_init
 cycle_counter = 0
-max_cycles = 3
+max_cycles = 2
 
+fig = plt.figure()
 try:
 	for ep in range(total_episodes):
 
@@ -266,6 +290,7 @@ try:
 		reward = 0
 
 		while True:
+			time.sleep(1./60.)
 			# Uncomment this to see the Actor in action
 			# But not in a python notebook.
 			# env.render()
@@ -275,7 +300,7 @@ try:
 			# set Torques in action space to be initial torque
 			# run torques as actions until the end
 			for i in range(len(t)):
-				env.render()
+				# env.render()
 				# print(cycle_counter)
 				if i == len(t) - 1:
 					cycle_counter += 1
@@ -286,17 +311,19 @@ try:
 					# 	max_cycles += 1
 					# max_cycles -= 1
 					print(" \n ASK \n")
-					# at the end, ask the policy for four new frequencies
-					try:
-						f_primes = np.abs(policy(tf_prev_state, ou_noise))
-					except:
-						f_primes = np.tile(f_0, num_actions)
+					# at the end, ask the policy for new frequencies
+					f_primes = np.abs(policy(tf_prev_state, ou_noise))
+					if not math.isnan(float(f_primes[0])):
+						f_primes = f_primes
+					else:
+						print("NAAAAAAAAAAAAAAAAAAAAAAAAAAAAAANN")
+						f_primes = [random.uniform(lower_bound, upper_bound) for i in range(num_actions)]
 					
-					torques = np.exp(episodic_reward/100)*torques[-1]
+					# torques = np.exp(episodic_reward/10)*torques[-1]
 
-					torques = torque_generator(torques, f_primes, t)
+					# torques = torque_generator(torques, f_primes, t)
 
-					# torques = smart_torque_generator(f_primes, t, reward)
+					torques = smart_torque_generator(f_primes, t, episodic_reward)
 
 				torques_set = torques[:,i]
 				torques_set = np.interp(torques_set, (torques.min(), torques.max()), (-1, +1))
@@ -334,18 +361,19 @@ try:
 		print("Episode * {} * Avg Reward is ==> {}".format(ep, avg_reward))
 		avg_reward_list.append(avg_reward)
 
-
 except KeyboardInterrupt:
 	# Plotting graph
 	# Episodes versus Avg. Rewards
 	plt.plot(avg_reward_list)
 	plt.xlabel("Episode")
 	plt.ylabel("Avg. Epsiodic Reward")
+	fig.savefig('reward_plot_1.png')
 	plt.show()
 
 plt.plot(avg_reward_list)
 plt.xlabel("Episode")
 plt.ylabel("Avg. Epsiodic Reward")
+fig.savefig('reward_plot_1.png')
 plt.show()
 
 
