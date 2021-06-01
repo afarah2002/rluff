@@ -32,12 +32,14 @@ env = gym.make(env_name)
 env.render()
 env.reset()
 
-
 num_states = env.observation_space.shape[0]
-num_actions = env.action_space.shape[0]
+num_actions = env.action_space.shape[0]*2
 
-upper_bound = 10.
-lower_bound = 1.
+# upper_bound = 2*np.pi
+# lower_bound = -2*np.pi
+
+upper_bound = 1.
+lower_bound = -1.
 
 class OUActionNoise:
 	'''
@@ -208,31 +210,14 @@ def policy(state, noise_object):
 
 	return list(np.squeeze(legal_action))
 
+def torque_generator(prev_sine_terms, new_amps, new_freqs, t):
 
-def torque_generator(last_proj_curves, f_primes, t):
-	# get product of fs and ts (inner term of sine)
-	product = np.outer(f_primes, t)
-	# get new sine terms
-	new_terms = np.sin(product) + np.cos(product)
-	# add new terms to old curves
-	new_proj_curve = np.add(last_proj_curves, new_terms)
-
-	return new_proj_curve + .01
-
-all_f_primes = [np.zeros(num_actions)]
-def smart_torque_generator(f_primes, t, reward):
-	# all_f_primes[-1]
-	all_f_primes.append(f_primes)
-	product = np.outer(all_f_primes, t).reshape(len(all_f_primes), num_actions, len(t))
-	new_terms = np.sin(product) + np.cos(product)
-
-	# only multiplies e^reward by the most recent sin(f't) set (before the new one)
-	new_terms[-2,:]*np.exp(reward/10)
-	new_proj_curve = np.sum(new_terms, axis=0)
-
-	return new_proj_curve + 0.01
-
-		
+	product = np.outer(t, new_freqs)
+	sine_term = np.sin(product)
+	full_sine_term = np.multiply(new_amps, sine_term)
+	output = np.add(prev_sine_terms, full_sine_term)
+	
+	return output		
 
 std_dev = 0.2
 ou_noise = OUActionNoise(mean=np.zeros(1), std_deviation=float(std_dev) * np.ones(1))
@@ -254,7 +239,7 @@ actor_lr = 0.001
 critic_optimizer = tf.keras.optimizers.Adam(critic_lr)
 actor_optimizer = tf.keras.optimizers.Adam(actor_lr)
 
-total_episodes = 100
+total_episodes = 500
 # Discount factor for future rewards
 gamma = 0.99
 # Used to update target networks
@@ -267,17 +252,25 @@ ep_reward_list = []
 # To store average reward history of last few episodes
 avg_reward_list = []
 
-# f_0 = 5
-f_s = 500
-f_primes = [random.uniform(lower_bound, upper_bound) for i in range(num_actions)]
-t = np.linspace(0,2*np.pi,f_s, endpoint=False)
-T_0s = np.zeros((num_actions, len(t)))
-# f_0s = np.tile(f_0, num_actions)
-# T_init = torque_generator(T_0s, f_primes[0], t) # dumb torques
-T_init = smart_torque_generator(f_primes, t, 0) # smart torques
+all_amps_store = []
+all_freqs_store = []
 
-print("initial torques: " , T_init)
+f_s = 100
+t = np.linspace(0, 2*np.pi, f_s, endpoint=False)
+amps_0 = [random.uniform(-1., 1.) for i in range(int(num_actions/2))]
+freqs_0 = [random.uniform(0., 10.) for i in range(int(num_actions/2))]
+torques_0 = np.zeros((len(t), int(num_actions/2)))
+T_init = torque_generator(torques_0, amps_0, freqs_0, t)
+
+
+print(T_init.shape)
+
 torques = T_init
+new_amps = amps_0
+new_freqs = freqs_0
+primes = np.concatenate((new_amps, new_freqs))
+new_term_factor = 1.
+
 cycle_counter = 0
 max_cycles = 2
 
@@ -288,6 +281,9 @@ try:
 		prev_state = env.reset()
 		episodic_reward = 0
 		reward = 0
+		
+		# print("T_init: ", T_init)
+		# break
 
 		while True:
 			time.sleep(1./60.)
@@ -306,31 +302,34 @@ try:
 					cycle_counter += 1
 
 				if cycle_counter >= max_cycles:
+					# after the previous f and A values 
+					# have been explored, ask for new ones
 					cycle_counter = 0
-					# if episodic_reward > ep_reward_list[-1]:
-					# 	max_cycles += 1
-					# max_cycles -= 1
+
+					# if we have mastered the first term, add another one
+					if episodic_reward > 1:
+						torques_0 = torques
+						new_term_factor /= 10.
+
 					print(" \n ASK \n")
-					# at the end, ask the policy for new frequencies
-					f_primes = np.abs(policy(tf_prev_state, ou_noise))
-					if not math.isnan(float(f_primes[0])):
-						f_primes = f_primes
+					primes = np.abs(policy(tf_prev_state, ou_noise))
+
+					if not math.isnan(float(primes[0])):
+						new_amps = new_term_factor*primes[:int(len(primes)/2)] 
+						new_freqs = primes[int(len(primes)/2):]
 					else:
 						print("NAAAAAAAAAAAAAAAAAAAAAAAAAAAAAANN")
-						f_primes = [random.uniform(lower_bound, upper_bound) for i in range(num_actions)]
-					
-					# torques = np.exp(episodic_reward/10)*torques[-1]
+						new_amps = [random.uniform(-1., 1.) for i in range(int(num_actions/2))]
+						new_freqs = [random.uniform(0., 10.) for i in range(int(num_actions/2))]
 
-					# torques = torque_generator(torques, f_primes, t)
+					torques = torque_generator(torques_0, new_amps, new_freqs, t)
 
-					torques = smart_torque_generator(f_primes, t, episodic_reward)
-
-				torques_set = torques[:,i]
-				torques_set = np.interp(torques_set, (torques.min(), torques.max()), (-1, +1))
-				# t = np.linspace(t[int(f_s/2)], t[int(f_s/2)] + 2*np.pi, f_s, endpoint=False)
+				torques_set = torques[i,:]
+				torques_set = np.interp(torques_set, (torques_set.min(), torques_set.max()), (-1, +1))
 				t = np.linspace(max(t), max(t) + 2*np.pi, f_s, endpoint=False)
+				# t = np.linspace(t[int(f_s/2)], t[int(f_s/2)] + 2*np.pi, f_s, endpoint=False)
 
-				print(episodic_reward, "  f' = ", f_primes, "torques = ", torques_set)
+				# print(episodic_reward, " torques = ", torques_set)
 				action = torques_set
 
 				# Recieve state and reward from environment.
@@ -339,13 +338,17 @@ try:
 				except:
 					break
 
-				buffer.record((prev_state, action, reward, state))
+				buffer.record((prev_state, primes, reward, state))
 				episodic_reward += reward
 				# print(torques_set)
 
 				buffer.learn()
 				update_target(target_actor.variables, actor_model.variables, tau)
 				update_target(target_critic.variables, critic_model.variables, tau)
+
+				print("ep reward = ", episodic_reward, \
+					  "bound = ", np.mean(ep_reward_list[-10:]), \
+					  "prev terms: ", torques_0[4,0])
 
 			# End this episode when `done` is True
 			if done and cycle_counter >= 1:
@@ -367,13 +370,11 @@ except KeyboardInterrupt:
 	plt.plot(avg_reward_list)
 	plt.xlabel("Episode")
 	plt.ylabel("Avg. Epsiodic Reward")
-	fig.savefig('reward_plot_1.png')
+	fig.savefig('reward_plot_5.png')
 	plt.show()
 
 plt.plot(avg_reward_list)
 plt.xlabel("Episode")
 plt.ylabel("Avg. Epsiodic Reward")
-fig.savefig('reward_plot_1.png')
+fig.savefig('reward_plot_5.png')
 plt.show()
-
-

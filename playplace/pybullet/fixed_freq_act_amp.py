@@ -36,8 +36,11 @@ env.reset()
 num_states = env.observation_space.shape[0]
 num_actions = env.action_space.shape[0]
 
-upper_bound = 10.
-lower_bound = 1.
+# upper_bound = 2*np.pi
+# lower_bound = -2*np.pi
+
+upper_bound = 1.
+lower_bound = -1.
 
 class OUActionNoise:
 	'''
@@ -209,28 +212,21 @@ def policy(state, noise_object):
 	return list(np.squeeze(legal_action))
 
 
-def torque_generator(last_proj_curves, f_primes, t):
+def torque_generator(amps, f_fixed, t):
 	# get product of fs and ts (inner term of sine)
-	product = np.outer(f_primes, t)
-	# get new sine terms
-	new_terms = np.sin(product) + np.cos(product)
-	# add new terms to old curves
-	new_proj_curve = np.add(last_proj_curves, new_terms)
+	product = t*f_fixed
+	sine_term = np.sin(product)
+	output = np.outer(amps, sine_term)
 
-	return new_proj_curve + .01
+	return output
 
-all_f_primes = [np.zeros(num_actions)]
-def smart_torque_generator(f_primes, t, reward):
-	# all_f_primes[-1]
-	all_f_primes.append(f_primes)
-	product = np.outer(all_f_primes, t).reshape(len(all_f_primes), num_actions, len(t))
-	new_terms = np.sin(product) + np.cos(product)
+# def torque_generator(phase_shifts, f_fixed, t):
+# 	# get product of fs and ts (inner term of sine)
+# 	product = np.add.outer(phase_shifts, t)*f_fixed
+# 	sine_term = np.sin(product)
+# 	output = sine_term
 
-	# only multiplies e^reward by the most recent sin(f't) set (before the new one)
-	new_terms[-2,:]*np.exp(reward/10)
-	new_proj_curve = np.sum(new_terms, axis=0)
-
-	return new_proj_curve + 0.01
+# 	return output
 
 		
 
@@ -267,17 +263,18 @@ ep_reward_list = []
 # To store average reward history of last few episodes
 avg_reward_list = []
 
-# f_0 = 5
-f_s = 500
-f_primes = [random.uniform(lower_bound, upper_bound) for i in range(num_actions)]
+f_s = 100
+amps_0 = [random.uniform(lower_bound, upper_bound) for i in range(num_actions)]
+f_fixed = 5.
 t = np.linspace(0,2*np.pi,f_s, endpoint=False)
-T_0s = np.zeros((num_actions, len(t)))
-# f_0s = np.tile(f_0, num_actions)
-# T_init = torque_generator(T_0s, f_primes[0], t) # dumb torques
-T_init = smart_torque_generator(f_primes, t, 0) # smart torques
+
+T_init = torque_generator(amps_0, f_fixed, t) # smart torques
 
 print("initial torques: " , T_init)
+
 torques = T_init
+new_amps = amps_0
+
 cycle_counter = 0
 max_cycles = 2
 
@@ -312,25 +309,23 @@ try:
 					# max_cycles -= 1
 					print(" \n ASK \n")
 					# at the end, ask the policy for new frequencies
-					f_primes = np.abs(policy(tf_prev_state, ou_noise))
-					if not math.isnan(float(f_primes[0])):
-						f_primes = f_primes
+					new_amps = np.abs(policy(tf_prev_state, ou_noise))
+					if not math.isnan(float(new_amps[0])):
+						new_amps = new_amps
 					else:
 						print("NAAAAAAAAAAAAAAAAAAAAAAAAAAAAAANN")
-						f_primes = [random.uniform(lower_bound, upper_bound) for i in range(num_actions)]
+						new_amps = [random.uniform(lower_bound, upper_bound) for e in range(num_actions)]
 					
-					# torques = np.exp(episodic_reward/10)*torques[-1]
 
-					# torques = torque_generator(torques, f_primes, t)
+					torques = torque_generator(new_amps, f_fixed, t)
 
-					torques = smart_torque_generator(f_primes, t, episodic_reward)
-
+				# print(len(torques))
 				torques_set = torques[:,i]
-				torques_set = np.interp(torques_set, (torques.min(), torques.max()), (-1, +1))
+				torques_set = np.interp(torques_set, (torques_set.min(), torques_set.max()), (-1, +1))
 				# t = np.linspace(t[int(f_s/2)], t[int(f_s/2)] + 2*np.pi, f_s, endpoint=False)
 				t = np.linspace(max(t), max(t) + 2*np.pi, f_s, endpoint=False)
 
-				print(episodic_reward, "  f' = ", f_primes, "torques = ", torques_set)
+				print(episodic_reward, "  amps = ", new_amps, " torques = ", torques_set)
 				action = torques_set
 
 				# Recieve state and reward from environment.
@@ -367,13 +362,13 @@ except KeyboardInterrupt:
 	plt.plot(avg_reward_list)
 	plt.xlabel("Episode")
 	plt.ylabel("Avg. Epsiodic Reward")
-	fig.savefig('reward_plot_1.png')
+	fig.savefig('reward_plot_2.png')
 	plt.show()
 
 plt.plot(avg_reward_list)
 plt.xlabel("Episode")
 plt.ylabel("Avg. Epsiodic Reward")
-fig.savefig('reward_plot_1.png')
+fig.savefig('reward_plot_2.png')
 plt.show()
 
 
