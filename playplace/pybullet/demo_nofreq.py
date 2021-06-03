@@ -216,13 +216,13 @@ target_actor.set_weights(actor_model.get_weights())
 target_critic.set_weights(critic_model.get_weights())
 
 # Learning rate for actor-critic models
-critic_lr = 0.02
-actor_lr = 0.01
+critic_lr = 0.2
+actor_lr = 0.1
 
 critic_optimizer = tf.keras.optimizers.Adam(critic_lr)
 actor_optimizer = tf.keras.optimizers.Adam(actor_lr)
 
-total_episodes = 100
+total_episodes = 5000
 # Discount factor for future rewards
 gamma = 0.99
 # Used to update target networks
@@ -236,6 +236,7 @@ ep_reward_list = []
 avg_reward_list = []
 
 # Takes about 4 min to train
+fig = plt.figure()
 try:
     for ep in range(total_episodes):
 
@@ -254,9 +255,9 @@ try:
             # print(action)
             # Recieve state and reward from environment.
             state, reward, done, info = env.step(action)
-            print(reward)
             buffer.record((prev_state, action, reward, state))
             episodic_reward += reward
+            print("Episodic reward: ", episodic_reward)
 
             buffer.learn()
             update_target(target_actor.variables, actor_model.variables, tau)
@@ -267,6 +268,7 @@ try:
                 break
 
             prev_state = state
+        
 
         ep_reward_list.append(episodic_reward)
 
@@ -282,6 +284,7 @@ except KeyboardInterrupt:
     plt.plot(avg_reward_list)
     plt.xlabel("Episode")
     plt.ylabel("Avg. Epsiodic Reward")
+    plt.savefig("regular_DDPG.png")
     plt.show()
 
 # Plotting graph
@@ -289,4 +292,5 @@ except KeyboardInterrupt:
 plt.plot(avg_reward_list)
 plt.xlabel("Episode")
 plt.ylabel("Avg. Epsiodic Reward")
+plt.savefig("regular_DDPG.png")
 plt.show()
