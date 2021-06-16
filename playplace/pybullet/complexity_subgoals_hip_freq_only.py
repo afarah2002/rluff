@@ -5,7 +5,6 @@ import time
 import math
 from queue import Queue
 from threading import Thread
-from sklearn.preprocessing import minmax_scale
 
 from test2_live_plotter import MyDataClass, MyPlotClass
 
@@ -41,7 +40,8 @@ env.render()
 env.reset()
 
 num_states = env.observation_space.shape[0]
-num_actions = env.action_space.shape[0]*2
+# num_actions = env.action_space.shape[0]*2
+num_actions = 8
 
 # upper_bound = 2*np.pi
 # lower_bound = -2*np.pi
@@ -211,7 +211,7 @@ def policy(state, noise_object):
 	sampled_actions = tf.squeeze(actor_model(state))
 	noise = noise_object()
 	# Adding noise to action
-	sampled_actions = sampled_actions.numpy()
+	sampled_actions = sampled_actions.numpy() + noise
 
 	# We make sure action is within bounds
 	legal_action = np.clip(sampled_actions, lower_bound, upper_bound)
@@ -224,11 +224,7 @@ def torque_generator(prev_sine_terms, new_amps, new_freqs, t):
 	sine_term = np.sin(product)
 	full_sine_term = np.multiply(new_amps, sine_term)
 	output = np.add(prev_sine_terms, full_sine_term)
-	# normalize between -1 and 1
-	for j in range(6):
-		if max(output[:,j]) > 1:
-			output[:,j] = minmax_scale(output[:,j], feature_range=(-1,1))
-
+	
 	return output		
 
 std_dev = 0.2
@@ -245,20 +241,20 @@ target_actor.set_weights(actor_model.get_weights())
 target_critic.set_weights(critic_model.get_weights())
 
 # Learning rate for actor-critic models
-critic_lr = 0.1
-actor_lr = 0.01
+critic_lr = 0.002
+actor_lr = 0.001
 
 critic_optimizer = tf.keras.optimizers.Adam(critic_lr)
 actor_optimizer = tf.keras.optimizers.Adam(actor_lr)
 
 
-total_episodes = 5000
+total_episodes = 500
 # Discount factor for future rewards
 gamma = 0.99
 # Used to update target networks
-tau = 0.05
+tau = 0.005
 
-buffer = Buffer(1000000, 64)
+buffer = Buffer(50000, 64)
 
 # To store reward history of each episode
 ep_reward_list = []
@@ -268,33 +264,33 @@ avg_reward_list = []
 all_amps_store = []
 all_freqs_store = []
 
-data = MyDataClass(int(num_actions/2))
+data = MyDataClass(6)
 
 def producer(out_q):
-	f_s = 50
+	f_s = 250
 	t_0 = np.linspace(0, 2*np.pi, f_s, endpoint=False)
 	t = t_0
-	amps_0 = [random.uniform(-1., 1.) for i in range(int(num_actions/2))]
-	freqs_0 = [random.uniform(0., 10.) for i in range(int(num_actions/2))]
-	torques_0 = np.zeros((len(t), int(num_actions/2)))
+	amps_0 = [random.uniform(-1., 1.) for i in range(2)]
+	freqs_0 = [random.uniform(0., 10.) for i in range(2)]
+	torques_0 = np.zeros((len(t), 2))
+	print(amps_0, "\n", freqs_0)
 	T_init = torque_generator(torques_0, amps_0, freqs_0, t)
 
 
 	print(T_init.shape)
 
 	torques = T_init
-	prev_torque_term = T_init
 	new_amps = amps_0
 	new_freqs = freqs_0
-	primes = np.concatenate((new_amps, new_freqs))
+	primes = np.concatenate((new_amps, new_freqs, [random.uniform(-1.,1.) for i in range(4)]))
 
-	term_count = 1
 	new_term_factor = 1.
-	term_reduction_factor = .99
-	term_bound = 0
+	term_reduction_factor = 2.
+	term_bound = -700
 
 	cycle_counter = 0
-	max_cycles = 5
+	max_cycles = 2
+
 
 	# fig = plt.figure()
 	try:
@@ -304,8 +300,15 @@ def producer(out_q):
 			episodic_reward = 0
 			reward = 0
 			t = t_0
+			
+			# print("T_init: ", T_init)
 
 			while True:
+				time.sleep(1./60.)
+				# time.sleep(.2)
+				# Uncomment this to see the Actor in action
+				# But not in a python notebook.
+				# env.render()
 
 				tf_prev_state = tf.expand_dims(tf.convert_to_tensor(prev_state), 0)
 
@@ -322,40 +325,49 @@ def producer(out_q):
 						# after the previous f and A values 
 						# have been explored, ask for new ones
 						cycle_counter = 0
-						# done = True
+
+						# if we have mastered the first term, add another one
+						if episodic_reward > term_bound:
+							torques_0 = torques
+							term_bound += 100
+							new_term_factor /= term_reduction_factor
+
 						print(" \n ASK \n")
 						primes = np.abs(policy(tf_prev_state, ou_noise))
 
 						if not math.isnan(float(primes[0])):
-							new_amps = new_term_factor*primes[:int(len(primes)/2)] 
-							new_freqs = primes[int(len(primes)/2):]
+							# new_amps = new_term_factor*primes[:int(len(primes)/2)]
+							new_amps = new_term_factor*primes[:2] 
+							# new_freqs = primes[int(len(primes)/2):]
+							new_freqs = new_term_factor*primes[2:4]
 						else:
 							print("NAAAAAAAAAAAAAAAAAAAAAAAAAAAAAANN")
-							new_amps = [random.uniform(-1., 1.) for i in range(int(num_actions/2))]
-							new_freqs = [random.uniform(0., 10.) for i in range(int(num_actions/2))]
+							new_amps = [random.uniform(-1., 1.) for i in range(2)]
+							new_freqs = [random.uniform(0., 10.) for i in range(2)]
 
-						torques = torque_generator(prev_torque_term, new_amps, new_freqs, t)
-
-					torques_set = torques[i,:]
-					# print("Term bound: ", term_bound, "   Term count: ", term_count)
-					# print(cycle_counter)
+						torques = torque_generator(torques_0, new_amps, new_freqs, t)
+					
+					torques_set = np.concatenate(([torques[i,0]], primes[4:6], [torques[i,1]], primes[6:]))
+					# torques_set = np.concatenate((torques[i,:], primes[4:]))
+					torques_set = np.interp(torques_set, (torques_set.min(), torques_set.max()), (-1, +1))
 					# t = np.linspace(t[int(f_s/2)], t[int(f_s/2)] + 2*np.pi, f_s, endpoint=False)
 
 					# print(episodic_reward, " torques = ", torques_set)
+
 					action = torques_set
-					# print(action)
+					print(action)
 
 					# data.actions_data.append(action)
 					# data.XData.append(t[i])
 
 					out_q.put((t[i], action, ep, episodic_reward))
-					# print(ep, "		", episodic_reward)
+
 					# print(np.array(data.actions_data).T)
 
 
 					# Recieve state and reward from environment.
 					try:
-						state, reward, done, info = env.step(action)
+						state, reward, done, info = env.step(list(action))
 					except:
 						break
 
@@ -364,7 +376,6 @@ def producer(out_q):
 					# print(torques_set)
 
 					buffer.learn()
-
 					update_target(target_actor.variables, actor_model.variables, tau)
 					update_target(target_critic.variables, critic_model.variables, tau)
 
@@ -378,48 +389,47 @@ def producer(out_q):
 
 				prev_state = state
 				t = np.linspace(max(t), max(t) + 2*np.pi, f_s, endpoint=False)
-			
 
+			# if episodic_reward > ep_reward_list[-1] + 1000:
+			# 	max_cycles += 1
 			ep_reward_list.append(episodic_reward)
 			# Mean of last 40 episodes
 			avg_reward = np.mean(ep_reward_list[-40:])
-
-			# if we have mastered the first term, add another one
-			if avg_reward > term_bound:
-				print("NEW TERM")
-				term_count += 1
-				torques_0 = torques
-				term_bound += 100
-				new_term_factor *= term_reduction_factor
-				prev_torque_term = torques
-
 			print("Episode * {} * Avg Reward is ==> {}".format(ep, avg_reward))
 			avg_reward_list.append(avg_reward)
 
-			###### SAVE MODEL HERE #####
-			MODEL_NUM_TAG = 2
-			model_loc = "saved_models/actor_" + str(MODEL_NUM_TAG)
-			actor_model.save(model_loc)
-
 	except KeyboardInterrupt:
+		# Plotting graph
+		# Episodes versus Avg. Rewards
+		# plt.plot(avg_reward_list)
+		# plt.xlabel("Episode")
+		# plt.ylabel("Avg. Epsiodic Reward")
+		# fig.savefig('reward_plot_9.png')
+		# plt.show()
 		print("stopped")
 
+	# plt.plot(avg_reward_list)
+	# plt.xlabel("Episode")
+	# plt.ylabel("Avg. Epsiodic Reward")
+	# fig.savefig('reward_plot_9.png')
+	# plt.show()
 
 def consumer(in_q):
 	while True:
+		# print("updating data")
 		for new_data in iter(in_q.get, _sentinel):
+			# print(new_data)	
 			data.XData.append(new_data[0])
 			data.actions_data.append(new_data[1])
-
 			if len(data.XData) >= 10:
 				del data.XData[0]
 				del data.actions_data[0]
 
-			if new_data[2] == data.episode_numbers[-1]:
-				data.episodic_reward_data[-1] = new_data[3]
-			if new_data[2] != data.episode_numbers[-1]:
-				data.episode_numbers.append(new_data[2])
-				data.episodic_reward_data.append(new_data[3])
+			data.episode_numbers.append(new_data[2])
+			data.episodic_reward_data.append(new_data[3])
+			
+			# print(data.actions_data)
+			time.sleep(2/60.)
 			
 
 plotter = MyPlotClass(data)
@@ -430,3 +440,4 @@ if __name__ == '__main__':
 	t1.start()
 	t2.start()
 	plt.show()
+	# producer()

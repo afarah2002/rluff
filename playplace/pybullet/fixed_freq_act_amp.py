@@ -4,7 +4,6 @@ import pybullet as p
 import time
 import math
 
-from test2_live_plotter import MyDataClass, MyPlotClass
 
 # it is different from how MuJoCo renders environments
 # it doesn't differ too much to me w/ and w/o mode='human'
@@ -229,157 +228,147 @@ def torque_generator(amps, f_fixed, t):
 
 # 	return output
 
-class RunRL(threading.Thread)
 		
-	def __init__(self, dataClass):
 
-		threading.Thread.__init__(self)
+std_dev = 0.2
+ou_noise = OUActionNoise(mean=np.zeros(1), std_deviation=float(std_dev) * np.ones(1))
 
-		self._dataClass = dataClass
-		self._period = 0.3
-		self._nextCall = time.time()
+actor_model = get_actor()
+critic_model = get_critic()
 
-	def run(self)
+target_actor = get_actor()
+target_critic = get_critic()
 
-		std_dev = 0.2
-		ou_noise = OUActionNoise(mean=np.zeros(1), std_deviation=float(std_dev) * np.ones(1))
+# Making the weights equal initially
+target_actor.set_weights(actor_model.get_weights())
+target_critic.set_weights(critic_model.get_weights())
 
-		actor_model = get_actor()
-		critic_model = get_critic()
+# Learning rate for actor-critic models
+critic_lr = 0.002
+actor_lr = 0.001
 
-		target_actor = get_actor()
-		target_critic = get_critic()
+critic_optimizer = tf.keras.optimizers.Adam(critic_lr)
+actor_optimizer = tf.keras.optimizers.Adam(actor_lr)
 
-		# Making the weights equal initially
-		target_actor.set_weights(actor_model.get_weights())
-		target_critic.set_weights(critic_model.get_weights())
+total_episodes = 100
+# Discount factor for future rewards
+gamma = 0.99
+# Used to update target networks
+tau = 0.005
 
-		# Learning rate for actor-critic models
-		critic_lr = 0.002
-		actor_lr = 0.001
+buffer = Buffer(50000, 64)
 
-		critic_optimizer = tf.keras.optimizers.Adam(critic_lr)
-		actor_optimizer = tf.keras.optimizers.Adam(actor_lr)
+# To store reward history of each episode
+ep_reward_list = []
+# To store average reward history of last few episodes
+avg_reward_list = []
 
-		total_episodes = 100
-		# Discount factor for future rewards
-		gamma = 0.99
-		# Used to update target networks
-		tau = 0.005
+f_s = 100
+amps_0 = [random.uniform(lower_bound, upper_bound) for i in range(num_actions)]
+f_fixed = 5.
+t = np.linspace(0,2*np.pi,f_s, endpoint=False)
 
-		buffer = Buffer(50000, 64)
+T_init = torque_generator(amps_0, f_fixed, t) # smart torques
 
-		# To store reward history of each episode
-		ep_reward_list = []
-		# To store average reward history of last few episodes
-		avg_reward_list = []
+print("initial torques: " , T_init)
 
-		f_s = 100
-		amps_0 = [random.uniform(lower_bound, upper_bound) for i in range(num_actions)]
-		f_fixed = 5.
-		t = np.linspace(0,2*np.pi,f_s, endpoint=False)
+torques = T_init
+new_amps = amps_0
 
-		T_init = torque_generator(amps_0, f_fixed, t) # smart torques
+cycle_counter = 0
+max_cycles = 2
 
-		print("initial torques: " , T_init)
+fig = plt.figure()
+try:
+	for ep in range(total_episodes):
 
-		torques = T_init
-		new_amps = amps_0
+		prev_state = env.reset()
+		episodic_reward = 0
+		reward = 0
 
-		cycle_counter = 0
-		max_cycles = 2
+		while True:
+			time.sleep(1./60.)
+			# Uncomment this to see the Actor in action
+			# But not in a python notebook.
+			# env.render()
 
-		fig = plt.figure()
-		try:
-			for ep in range(total_episodes):
+			tf_prev_state = tf.expand_dims(tf.convert_to_tensor(prev_state), 0)
 
-				prev_state = env.reset()
-				episodic_reward = 0
-				reward = 0
+			# set Torques in action space to be initial torque
+			# run torques as actions until the end
+			for i in range(len(t)):
+				# env.render()
+				# print(cycle_counter)
+				if i == len(t) - 1:
+					cycle_counter += 1
 
-				while True:
-					time.sleep(1./60.)
-					# Uncomment this to see the Actor in action
-					# But not in a python notebook.
-					# env.render()
+				if cycle_counter >= max_cycles:
+					cycle_counter = 0
+					# if episodic_reward > ep_reward_list[-1]:
+					# 	max_cycles += 1
+					# max_cycles -= 1
+					print(" \n ASK \n")
+					# at the end, ask the policy for new frequencies
+					new_amps = np.abs(policy(tf_prev_state, ou_noise))
+					if not math.isnan(float(new_amps[0])):
+						new_amps = new_amps
+					else:
+						print("NAAAAAAAAAAAAAAAAAAAAAAAAAAAAAANN")
+						new_amps = [random.uniform(lower_bound, upper_bound) for e in range(num_actions)]
+					
 
-					tf_prev_state = tf.expand_dims(tf.convert_to_tensor(prev_state), 0)
+					torques = torque_generator(new_amps, f_fixed, t)
 
-					# set Torques in action space to be initial torque
-					# run torques as actions until the end
-					for i in range(len(t)):
-						# env.render()
-						# print(cycle_counter)
-						if i == len(t) - 1:
-							cycle_counter += 1
+				# print(len(torques))
+				torques_set = torques[:,i]
+				torques_set = np.interp(torques_set, (torques_set.min(), torques_set.max()), (-1, +1))
+				# t = np.linspace(t[int(f_s/2)], t[int(f_s/2)] + 2*np.pi, f_s, endpoint=False)
+				t = np.linspace(max(t), max(t) + 2*np.pi, f_s, endpoint=False)
 
-						if cycle_counter >= max_cycles:
-							cycle_counter = 0
-							# if episodic_reward > ep_reward_list[-1]:
-							# 	max_cycles += 1
-							# max_cycles -= 1
-							print(" \n ASK \n")
-							# at the end, ask the policy for new frequencies
-							new_amps = np.abs(policy(tf_prev_state, ou_noise))
-							if not math.isnan(float(new_amps[0])):
-								new_amps = new_amps
-							else:
-								print("NAAAAAAAAAAAAAAAAAAAAAAAAAAAAAANN")
-								new_amps = [random.uniform(lower_bound, upper_bound) for e in range(num_actions)]
-							
+				print(episodic_reward, "  amps = ", new_amps, " torques = ", torques_set)
+				action = torques_set
 
-							torques = torque_generator(new_amps, f_fixed, t)
+				# Recieve state and reward from environment.
+				try:
+					state, reward, done, info = env.step(action)
+				except:
+					break
 
-						# print(len(torques))
-						torques_set = torques[:,i]
-						torques_set = np.interp(torques_set, (torques_set.min(), torques_set.max()), (-1, +1))
-						# t = np.linspace(t[int(f_s/2)], t[int(f_s/2)] + 2*np.pi, f_s, endpoint=False)
-						t = np.linspace(max(t), max(t) + 2*np.pi, f_s, endpoint=False)
+				buffer.record((prev_state, action, reward, state))
+				episodic_reward += reward
+				# print(torques_set)
 
-						print(episodic_reward, "  amps = ", new_amps, " torques = ", torques_set)
-						action = torques_set
+				buffer.learn()
+				update_target(target_actor.variables, actor_model.variables, tau)
+				update_target(target_critic.variables, critic_model.variables, tau)
 
-						# Recieve state and reward from environment.
-						try:
-							state, reward, done, info = env.step(action)
-						except:
-							break
+			# End this episode when `done` is True
+			if done and cycle_counter >= 1:
+				break
 
-						buffer.record((prev_state, action, reward, state))
-						episodic_reward += reward
-						# print(torques_set)
+			prev_state = state
 
-						buffer.learn()
-						update_target(target_actor.variables, actor_model.variables, tau)
-						update_target(target_critic.variables, critic_model.variables, tau)
+		# if episodic_reward > ep_reward_list[-1] + 1000:
+		# 	max_cycles += 1
+		ep_reward_list.append(episodic_reward)
+		# Mean of last 40 episodes
+		avg_reward = np.mean(ep_reward_list[-40:])
+		print("Episode * {} * Avg Reward is ==> {}".format(ep, avg_reward))
+		avg_reward_list.append(avg_reward)
 
-					# End this episode when `done` is True
-					if done and cycle_counter >= 1:
-						break
-
-					prev_state = state
-
-				# if episodic_reward > ep_reward_list[-1] + 1000:
-				# 	max_cycles += 1
-				ep_reward_list.append(episodic_reward)
-				# Mean of last 40 episodes
-				avg_reward = np.mean(ep_reward_list[-40:])
-				print("Episode * {} * Avg Reward is ==> {}".format(ep, avg_reward))
-				avg_reward_list.append(avg_reward)
-
-		except KeyboardInterrupt:
-			# Plotting graph
-			# Episodes versus Avg. Rewards
-			plt.plot(avg_reward_list)
-			plt.xlabel("Episode")
-			plt.ylabel("Avg. Epsiodic Reward")
-			fig.savefig('reward_plot_2.png')
-			plt.show()
-
+except KeyboardInterrupt:
+	# Plotting graph
+	# Episodes versus Avg. Rewards
 	plt.plot(avg_reward_list)
 	plt.xlabel("Episode")
 	plt.ylabel("Avg. Epsiodic Reward")
 	fig.savefig('reward_plot_2.png')
 	plt.show()
+
+plt.plot(avg_reward_list)
+plt.xlabel("Episode")
+plt.ylabel("Avg. Epsiodic Reward")
+fig.savefig('reward_plot_2.png')
+plt.show()
 
 
