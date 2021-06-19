@@ -290,8 +290,8 @@ def producer(out_q):
 
 	term_count = 1
 	new_term_factor = 1.
-	term_reduction_factor = .99
-	term_bound = 0
+	term_reduction_factor = .9
+	term_bound = -200
 
 	cycle_counter = 0
 	max_cycles = 5
@@ -399,7 +399,7 @@ def producer(out_q):
 			###### SAVE MODEL HERE #####
 			MODEL_NUM_TAG = 2
 			model_loc = "saved_models/actor_" + str(MODEL_NUM_TAG)
-			actor_model.save(model_loc)
+			# actor_model.save(model_loc)
 
 	except KeyboardInterrupt:
 		print("stopped")
