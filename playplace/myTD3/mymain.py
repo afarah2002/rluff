@@ -8,6 +8,7 @@ import pybullet_envs
 import threading 
 import queue 
 import matplotlib.pyplot as plt
+import time
 
 import myoptions
 import myplottingutils
@@ -26,8 +27,8 @@ if __name__ == '__main__':
 	data_storage = myplottingutils.MyDataClass(options_object.action_dim)
 	plotter = myplottingutils.MyPlotClass(data_storage)
 
-	t1 = threading.Thread(target=options_object.raw_TD3, args=(q,))
-	# t1 = threading.Thread(target=options_object.brute_force, args=(q,))
+	# t1 = threading.Thread(target=options_object.raw_TD3, args=(q,))
+	t1 = threading.Thread(target=options_object.brute_force, args=(q,))
 	t2 = threading.Thread(target=options_object.consumer, args=(q, _sentinel, data_storage))
 	t1.start()
 	t2.start()
