@@ -68,7 +68,7 @@ def speed_conscious_random_producer(out_q, speed):
 		for i in range(len(bounded_list)):
 			if i > 0:
 				d_theta = np.abs(bounded_list[i] - bounded_list[i-1])
-			delay = d_theta/speed
+			delay = 6*d_theta/speed
 			
 			out_q.put((bounded_list[i], delay))
 			time.sleep(delay)
