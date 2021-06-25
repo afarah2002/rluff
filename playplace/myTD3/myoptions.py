@@ -218,7 +218,7 @@ class Options(object):
 		'''
 		self.env_action_dim = self.env.action_space.shape[0] # num of joints (original action_dim)
 		no_terms = 5
-		f_bounds = [0.01, 10.]
+		f_bounds = [self.env.action_space.low[0], self.env.action_space.high[0]]
 		self.max_action = f_bounds[1]
 		self.action_dim = self.env_action_dim * 3 * no_terms
 
