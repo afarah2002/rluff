@@ -45,6 +45,35 @@ def rand_producer(out_q, speed):
 		out_q.put((angle, delay))
 		time.sleep(delay)
 
+def speed_conscious_random_producer(out_q, speed):
+	''' 
+	Given a speed and a random angle, generates a 
+	list between the random angle and the current
+	angle so that the speed from beginning to end 
+	is the specified speed	
+	'''
+	max_speed = 150
+	angles_list = [135]
+	while True:
+		angle = random.uniform(0., 260.)
+		angles_list.append(angle)
+		print("Angle: ", angle)
+
+		D_theta = np.abs(angles_list[-1] - angles_list[-2])
+		bounded_list = np.linspace(angles_list[-2], 
+								   angles_list[-1],
+								   int(D_theta*max_speed/speed))
+
+		d_theta = 0.1
+		for i in range(len(bounded_list)):
+			if i > 0:
+				d_theta = np.abs(bounded_list[i] - bounded_list[i-1])
+			delay = d_theta/speed
+			
+			out_q.put((bounded_list[i], delay))
+			time.sleep(delay)
+
+
 
 def consumer(in_q, servo, _sentinel):
 	while True:
@@ -61,11 +90,12 @@ if __name__ == '__main__':
 	q = queue.Queue()
 	_sentinel = object()
 
-	max_speed = 150
+	# max_speed = 150
+	speed = float(input("Speed: "))
 
 	servo_1 = Servo(17, "Stroke plane servo")
 
-	t1 = threading.Thread(target=rand_producer, args=(q, max_speed))
+	t1 = threading.Thread(target=speed_conscious_random_producer, args=(q, speed))
 	t2 = threading.Thread(target=consumer, args=(q, servo_1, _sentinel))
 
 	t1.start()
