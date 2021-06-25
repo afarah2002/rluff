@@ -11,7 +11,7 @@ class Servo(object):
 		self.pwm_frq = pwm_frq
 		self.pwm_start = pwm_start
 		self.prev_angle = random.uniform(0., 260.)
-		print(self.prev_angle)
+
 		GPIO.setmode(GPIO.BCM)
 		GPIO.setup(self.pin_num, GPIO.OUT)
 		self.pin = GPIO.PWM(self.pin_num, self.pwm_frq)
@@ -20,18 +20,18 @@ class Servo(object):
 		
 	def reset(self):
 		# Sets servo to the zero position
-		self.turn_to_angle(0)
-		time.sleep(1.)
+		self.turn_to_angle(0, 2.)
+		# time.sleep(1.)
 
-	def turn_to_angle(self, angle):
+	def turn_to_angle(self, angle, delay):
 		# Given angle in deg, turn servo to that angle
-		print("Angle of " + self.servo_name + ": " + str(angle))
+		# print("Angle of " + self.servo_name + ": " + str(angle), "\n --------------------")
 		duty_cycle_from_angle = self.pwm_start + (angle/27)
 		self.pin.ChangeDutyCycle(duty_cycle_from_angle)
 
 		# time.sleep(np.abs(self.prev_angle - angle)/27)
-		# time.sleep(0.01)
-		self.prev_angle = angle
+		time.sleep(delay)
+		# self.prev_angle = angle
 
 
 	def close(self):

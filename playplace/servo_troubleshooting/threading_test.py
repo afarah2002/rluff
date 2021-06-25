@@ -6,31 +6,51 @@ import matplotlib.pyplot as plt
 
 from stroke_plane_servo import Servo
 
-def producer(out_q):
+# precision_factor = int(input("Precision: "))
+
+def producer(out_q, max_speed):
 	while True:
-		# for angle in list(np.arange(0, 270, 10)) + list(np.flip(np.arange(10, 260, 10))):
-		for angle in 135 + 135*np.sin(np.linspace(0,2*np.pi,100)):
-			print("Sent angle: ", angle)
-			out_q.put(angle)
+		uniform_list = list(np.array(100*[list(np.linspace(0, 270, 60)) + \
+										  list(np.flip(np.linspace(10, 260, 60)))]).flatten())
+		print(len(uniform_list), "\n\n\n")
+		# sine_list = list(130 - 130*np.cos(np.linspace(0,4*np.pi,60)))
+		sine_list = list(130 - 130*np.cos(np.arange(0, 4*np.pi, 4*np.pi/60)))
+
+		LIST = sine_list
+		difference = 1
+		for i in range(len(LIST)):
+			angle = LIST[i]
+			if i > 0:
+				difference = np.abs(angle - LIST[i-1])
+				print("difference = ", difference)
+			# print("Sent angle: ", angle)
+			delay = difference/max_speed
+			out_q.put((angle, delay))
 			# must include pause in the producer so it doesn't spam the consumer		
-			# time.sleep(0.01) 
+			time.sleep(delay) 
 
 
 def consumer(in_q, servo, _sentinel):
 	while True:
 		for data in iter(in_q.get, _sentinel):
-			angle = data
-			servo.turn_to_angle(angle)
-			print("Received angle:", angle)
-
+			angle = data[0]
+			delay = data[1]
+			# print("Received angle:", angle)
+			try:
+				servo.turn_to_angle(angle, delay)
+			except KeyboardInterrupt:
+				print("stopped")
 
 if __name__ == '__main__':
 	q = queue.Queue()
 	_sentinel = object()
 
+	# delay = 0.1/precision_factor
+	max_speed = float(input("Max speed guess:"))
+
 	servo_1 = Servo(17, "Stroke plane servo")
 
-	t1 = threading.Thread(target=producer, args=(q,))
+	t1 = threading.Thread(target=producer, args=(q, max_speed))
 	t2 = threading.Thread(target=consumer, args=(q, servo_1, _sentinel))
 
 	t1.start()
