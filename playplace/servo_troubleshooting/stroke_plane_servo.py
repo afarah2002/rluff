@@ -30,7 +30,7 @@ class Servo(object):
 		self.pin.ChangeDutyCycle(duty_cycle_from_angle)
 
 		# time.sleep(np.abs(self.prev_angle - angle)/27)
-		time.sleep(0.5)
+		# time.sleep(0.01)
 		self.prev_angle = angle
 
 
