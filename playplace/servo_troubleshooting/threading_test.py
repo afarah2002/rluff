@@ -3,6 +3,7 @@ import threading
 import queue
 import time
 import matplotlib.pyplot as plt
+import random
 
 from stroke_plane_servo import Servo
 
@@ -29,6 +30,21 @@ def producer(out_q, max_speed):
 			# must include pause in the producer so it doesn't spam the consumer		
 			time.sleep(delay) 
 
+def rand_producer(out_q, speed):
+	angles_list = [135]
+	while True:
+		angle = random.uniform(0., 260.)
+		angles_list.append(angle)
+
+		difference = np.abs(angles_list[-1] - angles_list[-2])
+
+		delay = difference/(speed)
+
+		print("Angle: ", angle, "   ", " Delay: ", delay)
+
+		out_q.put((angle, delay))
+		time.sleep(delay)
+
 
 def consumer(in_q, servo, _sentinel):
 	while True:
@@ -45,12 +61,11 @@ if __name__ == '__main__':
 	q = queue.Queue()
 	_sentinel = object()
 
-	# delay = 0.1/precision_factor
-	max_speed = float(input("Max speed guess:"))
+	max_speed = 150
 
 	servo_1 = Servo(17, "Stroke plane servo")
 
-	t1 = threading.Thread(target=producer, args=(q, max_speed))
+	t1 = threading.Thread(target=rand_producer, args=(q, max_speed))
 	t2 = threading.Thread(target=consumer, args=(q, servo_1, _sentinel))
 
 	t1.start()
