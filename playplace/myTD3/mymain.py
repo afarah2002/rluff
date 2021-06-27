@@ -28,6 +28,7 @@ p.connect(p.DIRECT)
 if __name__ == '__main__':
 	q = queue.Queue()
 	_sentinel = object()
+	servo_1 = Servo(17, "stroke plane servo")
 
 	options_object = myoptions.Options()
 
@@ -36,7 +37,8 @@ if __name__ == '__main__':
 
 	t1 = threading.Thread(target=options_object.raw_TD3, args=(q,))
 	# t1 = threading.Thread(target=options_object.brute_force, args=(q,))
-	t2 = threading.Thread(target=options_object.consumer, args=(q, _sentinel, data_storage))
+	t2 = threading.Thread(target=options_object.consumer, 
+						  args=(q, _sentinel, data_storage, servo_1))
 	t1.start()
 	# time.sleep(1.e-3)
 	t2.start()

@@ -372,9 +372,13 @@ class Options(object):
 	def complexity_subgoals(self):
 		pass
 
-	def consumer(self, in_q, sentinel, data_storage):
+	def consumer(self, in_q, sentinel, data_storage, servo):
 		while True:
 			for new_data in iter(in_q.get, sentinel):
+
+				servo_angle = 135+135*new_data[1][0]
+				servo.turn_with_speed(servo_angle, 70)
+
 				data_storage.XData.append(new_data[0])
 				data_storage.actions_data.append(new_data[1])
 
