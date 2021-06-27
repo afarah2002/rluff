@@ -105,7 +105,7 @@ class Options(object):
 			os.makedirs("./models")
 
 		self.env = gym.make(self.args.env)
-		self.env.render()
+		# self.env.render()
 
 		# Set seeds
 		self.env.seed(self.args.seed)
