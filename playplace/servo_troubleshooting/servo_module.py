@@ -59,9 +59,9 @@ class Servo(object):
 		self.pin.stop()
 		GPIO.cleanup()
 
-if __name__ == '__main__':
-	servo_1 = Servo(17, "stroke plane servo")
-	while True:
-		angle = float(input("Angle: "))
-		speed = float(input("Speed: "))
-		servo_1.turn_with_speed(angle, speed)
+# if __name__ == '__main__':
+# 	servo_1 = Servo(17, "stroke plane servo")
+# 	while True:
+# 		angle = float(input("Angle: "))
+# 		speed = float(input("Speed: "))
+# 		servo_1.turn_with_speed(angle, speed)
