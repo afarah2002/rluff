@@ -4,6 +4,7 @@ import numpy as np
 import threading
 import random
 import time
+import os
 
 class MyDataClass(object):
 
@@ -68,4 +69,30 @@ class MyPlotClass(object):
 		
 		self.rewards_plot.axes.relim()
 		self.rewards_plot.axes.autoscale_view()
+
+class SaveData(object):
+
+	def __init__(self, action_file_loc, state_file_loc):
+		self.action_file_loc = action_file_loc # txt filename string
+		self.state_file_loc = state_file_loc 
+		os.system("touch " + self.action_file_loc + " " + self.state_file_loc)
+		open(self.action_file_loc).close()
+		open(self.state_file_loc).close()
+
+
+	def save_action(self, action_list):
+		# print("Saving action data.....")
+		print(action_list)
+		with open(self.action_file_loc, 'a') as f:
+			for item in action_list:
+				f.write(str(item) + " ")
+			f.write("\n")
+
+	def save_state(self, state_list):
+		print("Saving state data.....")
+		with open(self.state_file_loc, 'a') as f:
+			for item in state_list:
+				f.write(str(item) + " ")
+			f.write("\n")
+
 

@@ -73,7 +73,7 @@ class Options(object):
 
 	# action_dim = 0
 
-	def __init__(self):
+	def __init__(self, RENDER_BOOL=False):
 		self.parser = argparse.ArgumentParser()
 		self.parser.add_argument("--policy", default="TD3")                  # Policy name (TD3, DDPG or OurDDPG)
 		self.parser.add_argument("--env", default="HalfCheetahBulletEnv-v0")          # OpenAI gym environment name
@@ -105,7 +105,8 @@ class Options(object):
 			os.makedirs("./models")
 
 		self.env = gym.make(self.args.env)
-		# self.env.render()
+		if RENDER_BOOL:
+			self.env.render()
 
 		# Set seeds
 		self.env.seed(self.args.seed)
@@ -176,6 +177,7 @@ class Options(object):
 			
 			# Send action to queue
 			out_q.put((t, action, episode_num, episode_reward))
+			print(action)
 			# Perform action
 			next_state, reward, done, _ = self.env.step(action) 
 			done_bool = float(done) if episode_timesteps < self.env._max_episode_steps else 0
@@ -216,6 +218,7 @@ class Options(object):
 		 - 6 joints
 		  == 48 (4x2x6) outputs from NN
 		'''
+
 		self.env_action_dim = self.env.action_space.shape[0] # num of joints (original action_dim)
 		no_terms = 5
 		f_bounds = [self.env.action_space.low[0], self.env.action_space.high[0]]
@@ -372,17 +375,21 @@ class Options(object):
 	def complexity_subgoals(self):
 		pass
 
-	def consumer(self, in_q, sentinel, data_storage, servo):
+	def consumer(self, in_q, sentinel, data_storage, RPI_BOOL, data_save_obj, servo=None):
 		while True:
 			for new_data in iter(in_q.get, sentinel):
 
-				servo_angle = 135+135*new_data[1][0]
-				servo.turn_with_speed(servo_angle, 70)
+				action_data_list = [new_data[0]] + [i for i in new_data[1]]
+				data_save_obj.save_action(action_data_list)
+
+				if RPI_BOOL:
+					servo_angle = 135+135*new_data[1][0]
+					servo.turn_with_speed(servo_angle, 70)
 
 				data_storage.XData.append(new_data[0])
 				data_storage.actions_data.append(new_data[1])
 
-				if len(data_storage.XData) >= 50*3:
+				if len(data_storage.XData) >= 50:
 					del data_storage.XData[0]
 					del data_storage.actions_data[0]
 
