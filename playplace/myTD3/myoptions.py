@@ -375,16 +375,21 @@ class Options(object):
 	def complexity_subgoals(self):
 		pass
 
-	def consumer(self, in_q, sentinel, data_storage, RPI_BOOL, data_save_obj, servo=None):
+	def consumer(self, in_q, sentinel, data_storage, RPI_BOOL, data_save_obj, motor=None):
 		while True:
 			for new_data in iter(in_q.get, sentinel):
 
 				action_data_list = [new_data[0]] + [i for i in new_data[1]]
-				data_save_obj.save_action(action_data_list)
+				if data_save_obj:
+					data_save_obj.save_action(action_data_list)
 
 				if RPI_BOOL:
-					servo_angle = 135+135*new_data[1][0]
-					servo.turn_with_speed(servo_angle, 70)
+					#-----------------servo-----------------#
+					# servo_angle = 135+135*new_data[1][0]
+					# motor.turn_with_speed(servo_angle, 70)
+					#-----------------stepper-----------------#
+					angle = 180 + 180*new_data[1][0]
+					motor.turn_to_angle(100, angle=angle)
 
 				data_storage.XData.append(new_data[0])
 				data_storage.actions_data.append(new_data[1])
