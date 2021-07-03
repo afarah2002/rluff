@@ -46,8 +46,8 @@ class StepperMotor(object):
 		# Delay (half vs full)
 		min_delay = {True:0.0009, 
 					 False:0.0013}
-		delay = 0.0014*self.drive_conversions[self.drive]/(speed_pct/100)
 
+		delay = 0.0014*self.drive_conversions[self.drive]/(speed_pct/100)
 		# print(min_delay[self.VERB_BOOL])
 		# time.sleep(10)
 
@@ -68,7 +68,7 @@ class StepperMotor(object):
 
 if __name__ == '__main__':
 	GPIO_pins = [17,27,22,23]
-	stroke_plane_servo = StepperMotor(GPIO_pins, CONT_BOOL=False)
+	stroke_plane_servo = StepperMotor(GPIO_pins, drive="half", CONT_BOOL=False)
 	# speed_pct = 100
 	# angle = 90
 	# d_angle = 90
@@ -79,15 +79,20 @@ if __name__ == '__main__':
 		# d_angle = float(input("d_angle: "))
 		# stroke_plane_servo.turn_to_angle(speed_pct, d_angle=d_angle)
 
-	try:
-		t_list = np.linspace(0,2*np.pi,100)
-		for t in t_list:
-			angle = float(180*np.sin(t))
-			print(angle)
-			speed_pct = float(40*np.cos(t) + 50.)
-			# speed_pct = 100
+	# try:
+	# 	t_list = np.linspace(0,2*np.pi,100)
+	# 	for t in t_list:
+	# 		angle = float(180*np.sin(t))
+	# 		print(angle)
+	# 		speed_pct = float(40*np.cos(t) + 50.)
+	# 		# speed_pct = 100
 
-			stroke_plane_servo.turn_to_angle(speed_pct, angle=angle)
+	# 		stroke_plane_servo.turn_to_angle(speed_pct, angle=angle)
+
+	try:
+		while True:
+			stroke_plane_servo.turn_to_angle(100, d_angle=90.)
+
 	except KeyboardInterrupt:
 		exit()
 
