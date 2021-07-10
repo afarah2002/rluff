@@ -50,12 +50,12 @@ if __name__ == '__main__':
 	# plt.show()
 	x, y = variables('x, y')
 	w, = parameters('w')
-	model_dict = {y: fourier_series(x, f=w, n=10)}
+	model_dict = {y: fourier_series(x, f=w, n=5)}
 	print(model_dict)
 
 	# xdata = action_data_array[0][-100:-1]
-	xdata = np.linspace(-np.pi, np.pi, 100)
-	ydata = action_data_array[2][-101:-1]
+	xdata = np.linspace(-np.pi, np.pi, 200)
+	ydata = action_data_array[2][-201:-1]
 	# Make step function data
 	# xdata = np.linspace(-np.pi, np.pi)
 	# ydata = np.zeros_like(xdata)
