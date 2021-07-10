@@ -91,7 +91,12 @@ if __name__ == '__main__':
 
 	try:
 		while True:
-			stroke_plane_servo.turn_to_angle(100, d_angle=90.)
+			# speed_pct = float(input("Speed pct: "))
+			# angle = float(input("Angle: "))
+			speed_pct = 100.
+			d_angle = 360.
+			stroke_plane_servo.turn_to_angle(speed_pct, d_angle=d_angle)
+
 
 	except KeyboardInterrupt:
 		exit()
