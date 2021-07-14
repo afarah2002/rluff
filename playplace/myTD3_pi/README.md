@@ -1,0 +1,1 @@
+This directory uses DDPG and TD3 (Deep Deterministic Policy Gradient and Twin Delayed Deep Deterministic Policy Gradient) code as developed by the TD3 authors, Scott Fujimoto et. al. The algorithms are not ours, but we have adapted them for our attempts at a periodic basis to explore a parameter space that may be periodic in nature. 
