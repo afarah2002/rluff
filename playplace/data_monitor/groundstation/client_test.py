@@ -13,7 +13,9 @@ class GUISocketClient(object):
 		data = self.gui_socket.recv(self.recv_size)
 		data_arr = pickle.loads(data)
 
-		return repr(data_arr)
+		return data_arr
+
+
 
 	def close(self):
 		self.gui_socket.close()
