@@ -4,6 +4,7 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import matplotlib.animation as animation
 import matplotlib.figure as mplfig
 import tkinter as tk
+from tkinter import ttk
 import threading
 import queue
 import time
@@ -18,16 +19,16 @@ def animate(i, fig, q):
 
 	new_data = q.get()
 	if new_data:
-		print(new_data)
+		# print(new_data)
 		new_x = new_data[fig_name][0]
 		new_y = new_data[fig_name][1]
 
 		data_class.XData.append(new_x)
 		data_class.YData.append(new_y)
 
-		# print(data_class.XData)
+		print(len(data_class.YData), data_class.YData)
 
-		if len(data_class.XData) > 50:
+		if len(data_class.XData) >= 50:
 			del data_class.XData[0]
 			del data_class.YData[0]
 
@@ -39,7 +40,7 @@ def animate(i, fig, q):
 		# plot.axes.set_ylim([-1,1])
 		plot.axes.autoscale_view()
 		fig.figure.canvas.draw_idle()
-		
+
 	else:
 		pass
 
@@ -77,20 +78,27 @@ class App(tk.Tk):
 		self.wm_title('Beam calculator')
 		container = tk.Frame(self)
 		container.pack(side='top', fill='both', expand=True)
-		for i, f in enumerate(figs_list):
-			bfig = NewTkFigure(container, controller=self, f=f.figure)
-			bfig.grid(row=i, column=0, sticky="nsew")
+
+		tab_parent = ttk.Notebook(self)
+		tab1 = ttk.Frame(tab_parent)
+		tab2 = ttk.Frame(tab_parent)
+		tabs_list = [tab1, tab2]
+
+		for i, f, t in zip(list(range(len(figs_list))), figs_list, tabs_list):
+			tab_parent.add(t, text=f.fig_name)
+			bfig = NewTkFigure(t, controller=self, f=f.figure)
+			bfig.grid(row=0, column=0, sticky="nsew")
 			# give the rows equal weight so they are allotted equal size
-			container.grid_rowconfigure(i, weight=1)
+			# container.grid_rowconfigure(0, weight=1)
 		# you need to give at least one row and one column a positive weight 
 		# https://stackoverflow.com/a/36507919/190597 (Bryan Oakley)
-		container.grid_columnconfigure(0, weight=1)
+		# container.grid_columnconfigure(0, weight=1)
+		tab_parent.pack(fill='both')
 
 
 def recv_sock_data(queue, gui_client):
 	while True:
 		recv_data = gui_client.receive_data_pack()
-		# with queue.mutex:
 		queue.queue.clear()
 		queue.put(recv_data)
 
@@ -104,8 +112,12 @@ except ConnectionRefusedError:
 q = queue.Queue()
 _sentinel = object()
 
-fig_names_list = ["joint torques", 
-				  "stroke plane"]
+fig_properties_dict = {"joint torques": [], 
+				  	   "stroke plane" : []}
+'''
+Format
+[]
+'''
 
 data_class_dict = {"joint torques": GUIDataClass("joint torques", 6),
 				   "stroke plane" : GUIDataClass("stroke plane", 1)}
@@ -119,7 +131,7 @@ socket_thread = threading.Thread(target=recv_sock_data, args=(q, gui_client))
 def main():	
 
 	app = App()
-	app.geometry('1280x720')
+	# app.geometry('1280x720')
 	anis = [animation.FuncAnimation(fig.figure, animate, interval=50, fargs=[fig, q]) 
 			for fig in figs_list]
 	socket_thread.start()

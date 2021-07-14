@@ -13,7 +13,7 @@ class GUISocketClient(object):
 		try:
 			data = self.gui_socket.recv(self.recv_size)
 			data_arr = pickle.loads(data)
-		except pickle.UnpicklingError:
+		except (pickle.UnpicklingError, ValueError):
 			print("PICKLING ERROR PASSED")
 			data_arr = None
 		return data_arr
