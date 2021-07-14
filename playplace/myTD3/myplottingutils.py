@@ -56,7 +56,8 @@ class MyPlotClass(object):
 	def run(self, i):  
 		# print("plotting data")
 		actions_transposed = np.array(self._dataClass.actions_data.copy()).T
-		# print(self._dataClass.XData)
+		# print(self._dataClass.XData[-1])
+		# print(len(self._dataClass.XData))
 		# print(actions_transposed)
 		for lnum,line in enumerate(self.actions_lines):
 			line.set_data(self._dataClass.XData, actions_transposed[lnum])
@@ -69,6 +70,9 @@ class MyPlotClass(object):
 		
 		self.rewards_plot.axes.relim()
 		self.rewards_plot.axes.autoscale_view()
+
+	def get_figure_object(self):
+		return self.fig
 
 class SaveData(object):
 
