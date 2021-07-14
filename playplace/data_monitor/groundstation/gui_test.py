@@ -16,8 +16,8 @@ def animate(i, fig, q):
 	data_class = fig.data_class
 	plot = fig.axs
 
-	try:
-		new_data = q.get()
+	new_data = q.get()
+	if new_data:
 		print(new_data)
 		new_x = new_data[fig_name][0]
 		new_y = new_data[fig_name][1]
@@ -39,7 +39,8 @@ def animate(i, fig, q):
 		# plot.axes.set_ylim([-1,1])
 		plot.axes.autoscale_view()
 		fig.figure.canvas.draw_idle()
-	except:
+		
+	else:
 		pass
 
 

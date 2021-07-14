@@ -10,9 +10,12 @@ class GUISocketClient(object):
 		self.gui_socket.connect((self.HOST, self.PORT))
 
 	def receive_data_pack(self):
-		data = self.gui_socket.recv_pyobj(self.recv_size)
-		# data = self.gui_socket.recv(self.recv_size)
-		# data_arr = pickle.loads(data)
+		try:
+			data = self.gui_socket.recv(self.recv_size)
+			data_arr = pickle.loads(data)
+		except pickle.UnpicklingError:
+			print("PICKLING ERROR PASSED")
+			data_arr = None
 		return data_arr
 
 
