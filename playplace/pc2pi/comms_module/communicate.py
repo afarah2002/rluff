@@ -7,18 +7,18 @@ class Server(object):
 	def __init__(self, server_IP_address, port=50007):
 		self.HOST = server_IP_address
 		self.PORT = port
-		self.gui_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-		self.gui_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-		self.gui_socket.bind((self.HOST, self.PORT))
-		self.gui_socket.listen(1)
-		self.conn, self.addr = self.gui_socket.accept()
+		self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+		self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+		self.socket.bind((self.HOST, self.PORT))
+		self.socket.listen(1)
+		self.conn, self.addr = self.socket.accept()
 
 	def send_data_pack(self, data_pack):
 		data_string = pickle.dumps(data_pack, -1)
 		self.conn.send(data_string)
 
 	def close(self):
-		self.gui_socket.close()
+		self.socket.close()
 
 class Client(object):
 
