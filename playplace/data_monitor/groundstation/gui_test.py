@@ -11,38 +11,40 @@ import time
 
 from client_test import GUISocketClient
 
-def animate(i, fig, q):
-	fig_name = fig.fig_name
-	line_set = fig.lines
-	data_class = fig.data_class
-	plot = fig.axs
 
-	new_data = q.get()
-	if new_data:
-		# print(new_data)
-		new_x = new_data[fig_name][0]
-		new_y = new_data[fig_name][1]
+class MPLAnimation:
+	def animate(i, fig, q):
+		fig_name = fig.fig_name
+		line_set = fig.lines
+		data_class = fig.data_class
+		plot = fig.axs
 
-		data_class.XData.append(new_x)
-		data_class.YData.append(new_y)
+		new_data = q.get()
+		if new_data:
+			# print(new_data)
+			new_x = new_data[fig_name][0]
+			new_y = new_data[fig_name][1]
 
-		print(len(data_class.YData), data_class.YData)
+			data_class.XData.append(new_x)
+			data_class.YData.append(new_y)
 
-		if len(data_class.XData) >= 50:
-			del data_class.XData[0]
-			del data_class.YData[0]
+			print(len(data_class.YData), data_class.YData)
 
-		YData_transposed = np.array(data_class.YData.copy()).T
-		for lnum, line in enumerate(line_set):
-			line.set_data(data_class.XData, YData_transposed[lnum])
+			if len(data_class.XData) >= 50:
+				del data_class.XData[0]
+				del data_class.YData[0]
 
-		plot.axes.relim()
-		# plot.axes.set_ylim([-1,1])
-		plot.axes.autoscale_view()
-		fig.figure.canvas.draw_idle()
+			YData_transposed = np.array(data_class.YData.copy()).T
+			for lnum, line in enumerate(line_set):
+				line.set_data(data_class.XData, YData_transposed[lnum])
 
-	else:
-		pass
+			plot.axes.relim()
+			# plot.axes.set_ylim([-1,1])
+			plot.axes.autoscale_view()
+			fig.figure.canvas.draw_idle()
+
+		else:
+			pass
 
 
 class GUIDataClass(object):
@@ -132,7 +134,7 @@ def main():
 
 	app = App()
 	# app.geometry('1280x720')
-	anis = [animation.FuncAnimation(fig.figure, animate, interval=50, fargs=[fig, q]) 
+	anis = [animation.FuncAnimation(fig.figure, MPLAnimation.animate, interval=50, fargs=[fig, q]) 
 			for fig in figs_list]
 	socket_thread.start()
 	app.mainloop()
