@@ -78,7 +78,7 @@ class Options(object):
 		self.parser.add_argument("--policy", default="TD3")                  # Policy name (TD3, DDPG or OurDDPG)
 		self.parser.add_argument("--env", default="HalfCheetahBulletEnv-v0")          # OpenAI gym environment name
 		self.parser.add_argument("--seed", default=0, type=int)              # Sets Gym, PyTorch and Numpy seeds
-		self.parser.add_argument("--start_timesteps", default=25e3, type=int)# Time steps initial random policy is used
+		self.parser.add_argument("--start_timesteps", default=1, type=int)# Time steps initial random policy is used
 		self.parser.add_argument("--eval_freq", default=5e3, type=int)       # How often (time steps) we evaluate
 		self.parser.add_argument("--max_timesteps", default=1e6, type=int)   # Max time steps to run environment
 		self.parser.add_argument("--expl_noise", default=0.1)                # Std of Gaussian exploration noise
@@ -332,12 +332,13 @@ class Options(object):
 				# if time_i == 1:
 				# 	print(action)
 				# Perform action
+				# print("RUNNING ACTION")
 				next_state, reward, done, _ = self.env.step(action) 
 				# Send action to plotting queue
-				
+				# print("POSTING TO QUEUE")
 				out_q.put((t_0[time_i], action, episode_num, episode_reward))
 				# done_bool = float(done) if episode_timesteps < self.env._max_episode_steps else 0
-				# done = False	
+				done = False	
 				if time_i != len(t_0) - 1:
 					done = False
 				# if time_i == len(t_0) - 1 and done == True:	
@@ -347,6 +348,7 @@ class Options(object):
 			# print(primes)
 			# Store data in replay buffer
 			self.replay_buffer.add(state, primes, next_state, reward, done)
+			# print("SAVED TO BUFFER")
 
 			state = next_state
 			episode_reward += reward
@@ -354,6 +356,7 @@ class Options(object):
 			# Train agent after collecting sufficient data
 			if t >= self.args.start_timesteps:
 				self.policy.train(self.replay_buffer, self.args.batch_size)
+				print("HELLO")
 
 			if done: 
 				# +1 to account for 0 indexing. +0 on ep_timesteps since it will increment +1 even if done=True

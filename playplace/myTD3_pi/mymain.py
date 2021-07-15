@@ -53,7 +53,7 @@ if __name__ == '__main__':
 	#-----------------alg and plot init-----------------#
 	options_object = myoptions.Options(RENDER_BOOL=False)
 	data_storage = myplottingutils.MyDataClass(options_object.action_dim)
-	plotter = myplottingutils.MyPlotClass(data_storage)
+	# plotter = myplottingutils.MyPlotClass(data_storage)
 
 	#-----------------saver init-----------------#
 	# filename_dict = {"raw_TD3": "raw_TD3/test_3.txt",
