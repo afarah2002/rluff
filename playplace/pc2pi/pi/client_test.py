@@ -2,8 +2,8 @@ import socket, pickle
 
 class SocketClient(object):
 
-	def __init__(self, pi_IP_address, port=50007, recv_size=8192):
-		self.HOST = pi_IP_address
+	def __init__(self, client_IP_address, port=50007, recv_size=8192):
+		self.HOST = client_IP_address
 		self.PORT = port
 		self.recv_size = recv_size
 		self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
