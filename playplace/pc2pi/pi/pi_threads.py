@@ -12,14 +12,28 @@ class Threads:
 
 	def act_n_obs_main(action_queue, action_state_combo_queue):
 		while 1:
-			action = action_queue.get()
-			if action:
+			action_data = action_queue.get()
+			if action_data:
 				# Turn motors here
-				print("Acting out", action[1])
+				print("Acting out", action_data)
 				# Observe next state
-				next_state = list(np.random.rand(1))
-				combo_data = {"action" : action, "next state" : next_state}
-				action_state_combo_queue.put(combo_data)
+				time_step_name = "Time"
+				time_step = action_data[time_step_name]
+
+				state_1_name = "IMU Readings"
+				state_1 = list(np.random.rand(6))
+
+				state_2_name = "Wing angles"
+				state_2 = list(np.random.rand(1))
+
+				state_data = {time_step_name : time_step,
+							  state_1_name : state_1,
+							  state_2_name : state_2}
+
+				combo_data_pack = {"action" : action_data, 
+								   "next state" : state_data}
+
+				action_state_combo_queue.put(combo_data_pack)
 			else:
 				pass
 
