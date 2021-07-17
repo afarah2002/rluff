@@ -31,6 +31,7 @@ class NewMPLFigure(object):
 		self.data_class = data_class
 		self.figure = mplfig.Figure(figsize=(6,2), dpi=200)
 		self.axs = self.figure.add_subplot(111)
+		self.axs.grid()
 		self.lines = [self.axs.plot([],[],lw=2)[0] for i in range(data_class.num_lines)]
 		self.axs.set_title(self.fig_name)
 		self.axs.set_xlabel("Timestep")
@@ -70,6 +71,7 @@ class MPLAnimation:
 				del data_class.XData[0]
 				del data_class.YData[0]
 
+			print(data_class.YData)
 			YData_transposed = np.array(data_class.YData.copy()).T
 			for lnum, line in enumerate(line_set):
 				line.set_data(data_class.XData, YData_transposed[lnum])

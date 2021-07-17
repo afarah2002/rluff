@@ -1,13 +1,25 @@
 import time
 import numpy as np
 
+from groundstation.ai_utils.options import AITechniques
+
 class Threads:
 
-	def ai_main(action_queue):
+	def ai_main(action_state_combo_queue, action_queue, technique, pi_client):
+		action_dim = 3
+		state_dim = 7
+		AI_infinte_res = AITechniques(action_state_combo_queue,
+									  action_queue,
+									  action_dim,
+									  state_dim,
+									  technique,
+									  pi_client)
+
+	def ai_main_test(action_queue):
 		time_step = 0
 		while 1:
 			time_step_name = "Time"
-			time_step += .01
+			time_step += .1
 			action_1_name = "Wing torques"
 			action_1 = list([np.sin(time_step),
 							 np.cos(time_step)])
@@ -26,6 +38,7 @@ class Threads:
 		# The PC is the server
 		while 1:
 			new_data = action_queue.get()
+			# print("NEW DATA: ", new_data)
 			if new_data:
 				new_data_pack = new_data 
 				server.send_data_pack(new_data_pack)
@@ -36,5 +49,7 @@ class Threads:
 		# The pi is the client
 		while 1:
 			combo_data_pack = client.receive_data_pack()
-			# print("Received:", combo_data_pack)
+			print("Received:", combo_data_pack)
 			action_state_combo_queue.put(combo_data_pack)
+			print("Put data in combo")
+

@@ -1,5 +1,7 @@
 import queue
+import itertools
 import matplotlib.animation as animation
+import multiprocessing
 import threading
 import time
 
@@ -34,12 +36,18 @@ def main():
 	pc_server = build_pc_server(pc_IP)
 
 	# Queues
-	action_queue = queue.Queue()
-	action_state_combo_queue = queue.Queue()
+	# manager = multiprocessing.Manager()
+	action_queue = multiprocessing.Queue()
+	action_state_combo_queue = multiprocessing.Queue()
 
 	# Threads
-	ai_thread = threading.Thread(target=pc_threads.Threads.ai_main,
-								 args=(action_queue,))
+	ai_test_thread = threading.Thread(target=pc_threads.Threads.ai_main_test,
+								 	  args=(action_queue,))
+	ai_main_thread = threading.Thread(target=pc_threads.Threads.ai_main,
+									  args=(action_state_combo_queue, 
+									  		action_queue, 
+									  		"infinte res",
+									  		pi_client))
 	send_actions_thread = threading.Thread(target=pc_threads.Threads.send_actions_main,
 										   args=(pc_server, action_queue))
 	recv_combos_thread = threading.Thread(target=pc_threads.Threads.recv_combos_main,
@@ -50,17 +58,32 @@ def main():
 	# recv_combos_thread.start()
 
 	
-	gui_data_classes = {"Wing torques" : gui_utils.GUIDataClass("Wing torques", 2),
+	gui_data_classes = {"Wing torques" : gui_utils.GUIDataClass("Wing torques", 1),
 						"Stroke plane angle" : gui_utils.GUIDataClass("Stroke plane angle", 1),
+						"Stroke plane speed" : gui_utils.GUIDataClass("Stroke plane speed", 1),
 						"IMU Readings" : gui_utils.GUIDataClass("IMU Readings", 6),
-						"Wing angles" : gui_utils.GUIDataClass("Wing angles", 1)}
+						"Wing angles" : gui_utils.GUIDataClass("Wing angles", 1),
+						"Reward" : gui_utils.GUIDataClass("Reward", 1)}
 	
-	gui_figs = [gui_utils.NewMPLFigure("action", "Wing torques", gui_data_classes["Wing torques"]),
-				gui_utils.NewMPLFigure("action", "Stroke plane angle", gui_data_classes["Stroke plane angle"]),
-				gui_utils.NewMPLFigure("next state", "IMU Readings", gui_data_classes["IMU Readings"]),
-				gui_utils.NewMPLFigure("next state", "Wing angles", gui_data_classes["Wing angles"]),]
+	# gui_figs = [gui_utils.NewMPLFigure("action", "Wing torques", gui_data_classes["Wing torques"]),
+	# 			gui_utils.NewMPLFigure("action", "Stroke plane angle", gui_data_classes["Stroke plane angle"]),
+	# 			gui_utils.NewMPLFigure("next state", "IMU Readings", gui_data_classes["IMU Readings"]),
+	# 			gui_utils.NewMPLFigure("next state", "Wing angles", gui_data_classes["Wing angles"]),
+	# 			gui_utils.NewMPLFigure("reward", "Reward", gui_data_classes["Reward"])]
 
-	lines_sets = [fig.lines for fig in gui_figs]
+	gui_action_figs = [gui_utils.NewMPLFigure("action", "Wing torques", gui_data_classes["Wing torques"]),
+					   gui_utils.NewMPLFigure("action", "Stroke plane angle", gui_data_classes["Stroke plane angle"]),
+					   gui_utils.NewMPLFigure("action", "Stroke plane speed", gui_data_classes["Stroke plane speed"])]
+	gui_state_figs = [gui_utils.NewMPLFigure("next state", "IMU Readings", gui_data_classes["IMU Readings"]),
+					  gui_utils.NewMPLFigure("next state", "Wing angles", gui_data_classes["Wing angles"])]
+	gui_reward_figs = [gui_utils.NewMPLFigure("reward", "Reward", gui_data_classes["Reward"])]
+
+	gui_figs = [gui_action_figs,
+				gui_state_figs,
+				gui_reward_figs]
+
+	for gui_fig_type in gui_figs:
+		lines_sets = [fig.lines for fig in gui_fig_type]
 
 	gui_app = gui_framework.GUI(gui_figs)
 
@@ -68,11 +91,15 @@ def main():
 									gui_utils.MPLAnimation.animate,
 									interval=50,
 									fargs=[fig, action_state_combo_queue])
-									for fig in gui_figs]
+									for fig in list(itertools.chain.from_iterable(gui_figs))]
 	print("Starting")
-	ai_thread.start()
+	# ai_test_thread.start()
+	ai_main_thread.start()
 	send_actions_thread.start()
-	recv_combos_thread.start()
+	# recv_combos_thread.start()
+
+	# action_state_combo_queue.join()
+	# action_queue.join()
 
 	gui_app.mainloop()
 
