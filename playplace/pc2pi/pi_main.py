@@ -45,7 +45,9 @@ def main():
 	 - Post {"action" : {"action 1" : [timestep, [action 1]],
 	 					 "action 2" : [timestep, [action 2]]},
 	 		 "next state" : {"state 1" : [timestep, [state 1]],
-	 		 				 "state 2" : [timestep, [state 2]]}
+	 		 				 "state 2" : [timestep, [state 2]]},
+	 		 "reward" : [timestep, reward_val],
+	 		 "done" : True or False
 	 		}
 	 	  to combo queue
 	Thread 3:

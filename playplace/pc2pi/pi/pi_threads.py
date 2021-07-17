@@ -1,5 +1,6 @@
 import time
 import numpy as np
+import random
 
 class Threads:
 
@@ -15,7 +16,7 @@ class Threads:
 			action_data = action_queue.get()
 			if action_data:
 				# Turn motors here
-				print("Acting out", action_data)
+				# print("Acting out", action_data)
 				# Observe next state
 				time_step_name = "Time"
 				time_step = action_data[time_step_name]
@@ -30,8 +31,23 @@ class Threads:
 							  state_1_name : state_1,
 							  state_2_name : state_2}
 
+				reward_data = {time_step_name : time_step,
+							   "Reward" : [50 - 100*float(np.random.rand(1))]}
+
+				done_data = {time_step_name : time_step,
+							 "done" : random.choice([True, False])}
+
+				# done_data = {time_step_name : time_step,
+				# 			 "done" : True}
+
+
 				combo_data_pack = {"action" : action_data, 
-								   "next state" : state_data}
+								   "next state" : state_data,
+								   "reward" : reward_data,
+								   "done" : done_data
+								   }
+
+				print(combo_data_pack)
 
 				action_state_combo_queue.put(combo_data_pack)
 			else:
