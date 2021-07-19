@@ -2,6 +2,8 @@ import time
 import numpy as np
 import random
 
+import pi.interact.act as act
+
 class Threads:
 
 	def recv_actions_main(client, action_queue):
@@ -11,13 +13,35 @@ class Threads:
 			print("Received:", action_data_pack)
 			action_queue.put(action_data_pack)
 
-	def act_n_obs_main(action_queue, action_state_combo_queue):
+	def act_n_obs_main(action_queue, 
+					   action_state_combo_queue,
+					   pc_client,
+					   pi_server):
+
+		client = pc_client
+		server = pi_server
+
+		stroke_plane_motor = act.StrokePlane([17,27,22,23])
+
 		while 1:
-			action_data = action_queue.get()
+			# action_data = action_queue.get()
+			action_data = client.receive_data_pack()
 			if action_data:
 				# Turn motors here
 				# print("Acting out", action_data)
 				# Observe next state
+
+				# There is a time lag for the motors to move, 
+				# Do not run the motors in a separate thread
+
+				# Actions
+				wing_torque = float(action_data["Wing torques"][0])
+				stroke_plane_d_theta = float(action_data["Stroke plane angle"][0])
+				stroke_plane_speed_pct = float(action_data["Stroke plane speed"][0])
+
+				stroke_plane_motor.turn(stroke_plane_d_theta,
+										stroke_plane_speed_pct)
+
 				time_step_name = "Time"
 				time_step = action_data[time_step_name]
 
@@ -48,8 +72,12 @@ class Threads:
 								   }
 
 				print(combo_data_pack)
+				print("\n")
+
 
 				action_state_combo_queue.put(combo_data_pack)
+				# pi_server.send_data_pack(combo_data_pack)
+
 			else:
 				pass
 
