@@ -139,7 +139,7 @@ class AITechniques(object):
 		action_data_pack = self.convert_action_to_action_pack(action, t)
 		# self.pc_server.send_data_pack(action_data_pack)
 		self.action_queue.put(action_data_pack)
-		time.sleep(0.02)
+		# time.sleep(0.02)
 		combo_data_pack = self.pi_client.receive_data_pack()
 		print(combo_data_pack)
 		print("\n")
