@@ -4,7 +4,8 @@ import numpy as np
 
 from RpiMotorLib import RpiMotorLib
 
-init_delay = 0.05
+
+# init_delay = 0.05
 
 class StepperMotor(object):
 	
