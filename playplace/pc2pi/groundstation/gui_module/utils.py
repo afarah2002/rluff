@@ -29,7 +29,7 @@ class NewMPLFigure(object):
 		self.tab_name = tab_name
 		self.fig_name = fig_name
 		self.data_class = data_class
-		self.figure = mplfig.Figure(figsize=(6,2), dpi=200)
+		self.figure = mplfig.Figure(figsize=(6,2), dpi=100)
 		self.axs = self.figure.add_subplot(111)
 		self.axs.grid()
 		self.lines = [self.axs.plot([],[],lw=2)[0] for i in range(data_class.num_lines)]
@@ -59,6 +59,10 @@ class MPLAnimation:
 		data_class = fig.data_class
 		plot = fig.axs
 
+		max_y = 0
+		min_y = 0
+
+
 		combo_data = combo_queue.get()
 		if combo_data:
 			new_x = combo_data[tab_name]["Time"]
@@ -71,13 +75,22 @@ class MPLAnimation:
 				del data_class.XData[0]
 				del data_class.YData[0]
 
-			print(data_class.YData)
+			# print(data_class.YData)
 			YData_transposed = np.array(data_class.YData.copy()).T
 			for lnum, line in enumerate(line_set):
 				line.set_data(data_class.XData, YData_transposed[lnum])
 
 			plot.axes.relim()
 			plot.axes.autoscale_view()
+
+			if np.max(data_class.YData) > max_y:
+				max_y = np.max(data_class.YData)
+
+			if np.min(data_class.YData) < min_y:
+				min_y = np.min(data_class.YData)
+
+			plot.set_ylim([min_y, max_y])
+
 			fig.figure.canvas.draw_idle()
 
 		else:

@@ -47,7 +47,8 @@ def main():
 									  args=(action_state_combo_queue, 
 									  		action_queue, 
 									  		"infinte res",
-									  		pi_client))
+									  		pi_client,
+									  		pc_server))
 	send_actions_thread = threading.Thread(target=pc_threads.Threads.send_actions_main,
 										   args=(pc_server, action_queue))
 	recv_combos_thread = threading.Thread(target=pc_threads.Threads.recv_combos_main,
@@ -89,7 +90,7 @@ def main():
 
 	anis = [animation.FuncAnimation(fig.figure, 
 									gui_utils.MPLAnimation.animate,
-									interval=50,
+									interval=200, # make this large enough so it doesn't lag!
 									fargs=[fig, action_state_combo_queue])
 									for fig in list(itertools.chain.from_iterable(gui_figs))]
 	print("Starting")

@@ -20,10 +20,12 @@ class AITechniques(object):
 					   action_dim,
 					   state_dim, 
 					   technique,
-					   pi_client):
+					   pi_client,
+					   pc_server):
 		self.action_state_combo_queue = action_state_combo_queue
 		self.action_queue = action_queue
 		self.pi_client = pi_client
+		self.pc_server = pc_server
 
 		#-----------------class wide arguments-----------------#
 		self.parser = argparse.ArgumentParser()
@@ -97,10 +99,11 @@ class AITechniques(object):
 				# Action must be within allowable ranges
 				action = np.random.rand(self.action_dim)
 			else:
-				print("NOT RANDOM")
+				# print("NOT RANDOM")
 				action = (
 					self.policy.select_action(np.array(state))
-					+ np.random.normal(0, self.args.expl_noise, size=self.action_dim))
+					+ np.random.normal(0, self.max_action * self.args.expl_noise, size=self.action_dim)
+				).clip(-self.max_action, self.max_action)
 
 			# Perform action
 			next_state, reward, done = self.step(action, t)
@@ -112,7 +115,7 @@ class AITechniques(object):
 				self.policy.train(self.replay_buffer, self.args.batch_size)
 			if done:
 				# +1 to account for 0 indexing. 0+ on ep_timesteps since it will increment +1 even if done=True
-				print(f"Total T: {t+1} Episode Num: {episode_num+1} Episode T: {episode_timesteps} Reward: {episode_reward:.3f}")
+				# print(f"Total T: {t+1} Episode Num: {episode_num+1} Episode T: {episode_timesteps} Reward: {episode_reward:.3f}")
 				# Reset env
 				state, done = self.reset(), False
 				episode_reward = 0
@@ -132,9 +135,14 @@ class AITechniques(object):
 		# - Add action to action queue
 		# - Read action-state combo from action-state-combo queue
 		# - Return the next state and the reward
+		action = self.convert_NN_action_to_Pi_action(action)
 		action_data_pack = self.convert_action_to_action_pack(action, t)
+		# self.pc_server.send_data_pack(action_data_pack)
 		self.action_queue.put(action_data_pack)
+		time.sleep(0.02)
 		combo_data_pack = self.pi_client.receive_data_pack()
+		print(combo_data_pack)
+		print("\n")
 		self.action_state_combo_queue.put(combo_data_pack)
 
 		combo_data = combo_data_pack
@@ -144,16 +152,29 @@ class AITechniques(object):
 
 		return next_state, reward, done
 
+	def convert_NN_action_to_Pi_action(self, action):
+		# Converts the values between 0 and 1 from the NN
+		# output to values that can actually be sent to 
+		# the Pi hardware/motors
+
+		action[0] *= 1 # wing torque
+		action[1] = np.array((action-0.5)*10).clip(-5., 5)[0]
+		# action[1] = (action[1] - 0.5)*10 # stroke_plane_d_theta, max change is +/- 5 deg
+		# action[2] = np.abs(action[2]*100) # ang vel to speed pct
+		action[2] = np.array(abs(action)*100).clip(75,100)[0] # ang vel to speed pct
+
+		return action
+
 	def convert_action_to_action_pack(self, action, t):
 		# Takes an action and converts it into the dictionary
 		# that is passed into the action queue
 		wing_torque = action[0]
-		stroke_plane_angle = action[1]
+		stroke_plane_d_theta = action[1]
 		stroke_plane_speed = action[2]
 
 		action_data_pack = {"Time" : t,
 							"Wing torques" : [wing_torque],
-							"Stroke plane angle" : [stroke_plane_angle],
+							"Stroke plane angle" : [stroke_plane_d_theta],
 							"Stroke plane speed" : [stroke_plane_speed]
 							}
 
@@ -189,17 +210,17 @@ class AITechniques(object):
 		return state
 
 	def eval_policy(self, eval_episodes=10):
-		print("EVALUATING POLICY...")
+		# print("EVALUATING POLICY...")
 		avg_reward = 0.
 		for _ in range(eval_episodes):
 			state, done = self.reset(), False
 			while not done:
 				action = self.policy.select_action(np.array(state))
-				print("hello")
+				# print("hello")
 
 				state, reward, done = self.step(action, _)
 				
-				print(state, reward, done)
+				# print(state, reward, done)
 
 				avg_reward += reward
 
