@@ -158,7 +158,7 @@ class AITechniques(object):
 		# the Pi hardware/motors
 
 		action[0] *= 1 # wing torque
-		action[1] = np.array((action-0.5)*10).clip(-5., 5)[0]
+		action[1] = np.array((action-0.5)*10).clip(-10., 10)[0]
 		# action[1] = (action[1] - 0.5)*10 # stroke_plane_d_theta, max change is +/- 5 deg
 		# action[2] = np.abs(action[2]*100) # ang vel to speed pct
 		action[2] = np.array(abs(action)*100).clip(75,100)[0] # ang vel to speed pct

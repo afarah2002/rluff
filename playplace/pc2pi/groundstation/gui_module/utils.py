@@ -29,7 +29,7 @@ class NewMPLFigure(object):
 		self.tab_name = tab_name
 		self.fig_name = fig_name
 		self.data_class = data_class
-		self.figure = mplfig.Figure(figsize=(6,2), dpi=100)
+		self.figure = mplfig.Figure(figsize=(6,2), dpi=200)
 		self.axs = self.figure.add_subplot(111)
 		self.axs.grid()
 		self.lines = [self.axs.plot([],[],lw=2)[0] for i in range(data_class.num_lines)]
