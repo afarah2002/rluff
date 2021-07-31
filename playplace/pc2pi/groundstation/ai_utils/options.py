@@ -93,7 +93,6 @@ class AITechniques(object):
 		for t in range(int(self.args.max_timesteps)):
 			# time.sleep(1)
 			episode_timesteps += 10
-
 			# Select action randomly or according to policy
 			if t < self.args.start_timesteps:
 				# Action must be within allowable ranges
@@ -106,8 +105,10 @@ class AITechniques(object):
 				).clip(-self.max_action, self.max_action)
 
 			# Perform action
-			next_state, reward, done = self.step(action, t)
+			next_state, reward, done = self.step(action, t, state)
 			# Store data in replay buffer
+			state = next_state
+			episode_reward += reward[0]
 			self.replay_buffer.add(state, action, next_state, reward, done)
 
 			# Train agent after collecting sufficient data
@@ -129,13 +130,13 @@ class AITechniques(object):
 
 
 
-	def step(self, action, t):
+	def step(self, action, t, state):
 		# Act here
 		# - Convert action array into action data pack
 		# - Add action to action queue
 		# - Read action-state combo from action-state-combo queue
 		# - Return the next state and the reward
-		action = self.convert_NN_action_to_Pi_action(action)
+		action = self.convert_NN_action_to_Pi_action(action, state)
 		action_data_pack = self.convert_action_to_action_pack(action, t)
 		# self.pc_server.send_data_pack(action_data_pack)
 		self.action_queue.put(action_data_pack)
@@ -152,16 +153,23 @@ class AITechniques(object):
 
 		return next_state, reward, done
 
-	def convert_NN_action_to_Pi_action(self, action):
+	def convert_NN_action_to_Pi_action(self, action, state):
 		# Converts the values between 0 and 1 from the NN
 		# output to values that can actually be sent to 
 		# the Pi hardware/motors
+		action_copy = np.array(action).copy()
+		
+		wing_angle = state[-1]
+		if wing_angle > 160:
+			action[0] = -2.5*abs(action_copy[0]) # wing torque
+		if wing_angle < 20:
+			action[0] = 2.5*abs(action_copy[0])
 
-		action[0] *= 1 # wing torque
-		action[1] = np.array((action-0.5)*10).clip(-10., 10)[0]
+		action[1] = np.array((action_copy[1]-0.5)*10).clip(-10., 10)
 		# action[1] = (action[1] - 0.5)*10 # stroke_plane_d_theta, max change is +/- 5 deg
 		# action[2] = np.abs(action[2]*100) # ang vel to speed pct
-		action[2] = np.array(abs(action)*100).clip(75,100)[0] # ang vel to speed pct
+		action[2] = np.array(abs(action_copy[2])*100).clip(75,100)# ang vel to speed pct
+		print(action)
 
 		return action
 
