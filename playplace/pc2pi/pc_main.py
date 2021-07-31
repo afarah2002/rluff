@@ -90,7 +90,7 @@ def main():
 
 	anis = [animation.FuncAnimation(fig.figure, 
 									gui_utils.MPLAnimation.animate,
-									interval=500, # make this large enough so it doesn't lag!
+									interval=1000, # make this large enough so it doesn't lag!
 									fargs=[fig, action_state_combo_queue])
 									for fig in list(itertools.chain.from_iterable(gui_figs))]
 	print("Starting")
