@@ -3,6 +3,7 @@ import numpy as np
 import random
 
 import pi.interact.act as act
+import pi.interact.observe as observe
 
 class Threads:
 
@@ -21,7 +22,16 @@ class Threads:
 		client = pc_client
 		server = pi_server
 
+		# Action setup
 		stroke_plane_motor = act.StrokePlane([17,27,22,23])
+		
+		motors = [1] # one motor
+		# motors = [0,1] # both motors
+		wing_torque_motor = act.WingTorque(motors)
+
+		# State setup
+		odrive = wing_torque_motor.odrive
+		wing_observer = observe.Wings(odrive, motors)
 
 		while 1:
 			# action_data = action_queue.get()
@@ -39,9 +49,13 @@ class Threads:
 				stroke_plane_d_theta = float(action_data["Stroke plane angle"][0])
 				stroke_plane_speed_pct = float(action_data["Stroke plane speed"][0])
 
+				# Act
 				stroke_plane_motor.turn(stroke_plane_d_theta,
 										stroke_plane_speed_pct)
 
+				wing_torque_motor.turn(wing_torque)
+
+				# States
 				time_step_name = "Time"
 				time_step = action_data[time_step_name]
 
@@ -49,7 +63,8 @@ class Threads:
 				state_1 = list(np.random.rand(6))
 
 				state_2_name = "Wing angles"
-				state_2 = list(np.random.rand(1))
+				# state_2 = list(np.random.rand(1))
+				state_2 = wing_observer.ang_pos()
 
 				state_data = {time_step_name : time_step,
 							  state_1_name : state_1,
@@ -58,11 +73,11 @@ class Threads:
 				reward_data = {time_step_name : time_step,
 							   "Reward" : [50 - 100*float(np.random.rand(1))]}
 
-				done_data = {time_step_name : time_step,
-							 "done" : random.choice([True, False])}
-
 				# done_data = {time_step_name : time_step,
-				# 			 "done" : True}
+				# 			 "done" : random.choice([True, False])}
+
+				done_data = {time_step_name : time_step,
+							 "done" : False}
 
 
 				combo_data_pack = {"action" : action_data, 

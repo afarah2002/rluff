@@ -9,23 +9,14 @@ import numpy as np
 
 class ODrive(object):
 
-	def __init__(self):
+	def __init__(self, motors):
 		self.odrv0 = odrive.find_any()
 		self.axes = [self.odrv0.axis0,
 					 self.odrv0.axis1]
-		# self.tune(1)
-		self.calibrate(1)
+		for m in motors:
+			self.calibrate(m)
 
-	def tune(self, axis_num):
-		'''
-		Good combo 1: 2.5, 0.02, 0.
-		Good combo 2: 2.5, 0.02, 0.5*(1/.5)*axis.controller.config.vel_gain
-
-		'''
-		axis = self.axes[axis_num]
-		axis.controller.config.pos_gain = 2.5
-		axis.controller.config.vel_gain = 0.02
-		axis.controller.config.vel_integrator_gain = 0.5*(1/.5)*axis.controller.config.vel_gain
+	def tune(self):
 		self.odrv0.save_configuration()
 
 	def calibrate(self, axis_num):
@@ -56,42 +47,8 @@ class ODrive(object):
 
 	def read_shadow_pos(self, axis_num):
 		axis = self.axes[axis_num]
-		return axis.encoder.shadow_count
-
-	def read_angle(self, axis_num, zero):
-		raw_shadow_count = self.read_shadow_pos(axis_num)
-		angle = (raw_shadow_count/8192.)*360 - zero
+		raw_shadow = axis.encoder.shadow_count
+		angle = (raw_shadow/8192.) * 360
 		return angle
 
-	def find_zero(self, axis_num):
-		print("Move Axis" + str(axis_num) + "to zero position")
-		while True:
-			enter = input("Press enter after zero is found")
-			if enter == "":
-				break
-		zero = self.read_angle(axis_num, 0)
-		print("This is the new zero: ", zero)
-		return zero
-
-def main():
-	od = ODrive()
-	motor = 1
-	trq_val = 2.5
-	zero = od.find_zero(motor)
-	while True:
-		pos = od.read_angle(motor, zero)
-		if pos > 90:
-			trq = -trq_val
-		if pos < -90:
-			trq = trq_val
-		try:
-			od.turn_trq(motor, trq)
-			print(trq, pos)
-		except UnboundLocalError:
-			od.turn_trq(motor, trq_val)
-		time.sleep(.01)
-
-if __name__ == '__main__':
-	main()
-
-
+	# def read_rpm
