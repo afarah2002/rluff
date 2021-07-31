@@ -1,0 +1,2 @@
+# Pendulum
+## This code allows us to experiment with an AI learning a periodic-like function on a cyberphysical system that is much simpler than a flapping wing system - a pendulum. This also lets verify the AI's interaction with same hardware that will be used in the flapping system. 
