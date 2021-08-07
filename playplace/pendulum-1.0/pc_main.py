@@ -31,53 +31,28 @@ def main():
 
 	# Comms
 	pi_IP = "192.168.1.95"
-	pi_client= build_pi_client(pi_IP)
+	pi_client = build_pi_client(pi_IP)
 	pc_IP = "192.168.1.192"
 	pc_server = build_pc_server(pc_IP)
 
 	# Queues
-	# manager = multiprocessing.Manager()
 	action_queue = multiprocessing.Queue()
 	action_state_combo_queue = multiprocessing.Queue()
 
-	# Threads
-	ai_test_thread = threading.Thread(target=pc_threads.Threads.ai_main_test,
-								 	  args=(action_queue,))
-	ai_main_thread = threading.Thread(target=pc_threads.Threads.ai_main,
-									  args=(action_state_combo_queue, 
-									  		action_queue, 
-									  		"infinte res",
-									  		pi_client,
-									  		pc_server))
-	send_actions_thread = threading.Thread(target=pc_threads.Threads.send_actions_main,
-										   args=(pc_server, action_queue))
-	recv_combos_thread = threading.Thread(target=pc_threads.Threads.recv_combos_main,
-										  args=(pi_client, action_state_combo_queue))
-	# print("Starting")
-	# ai_thread.start()
-	# send_actions_thread.start()
-	# recv_combos_thread.start()
-
-	
+	# GUI data 
 	gui_data_classes = {"Wing torques" : gui_utils.GUIDataClass("Wing torques", 1),
-						"Stroke plane angle" : gui_utils.GUIDataClass("Stroke plane angle", 1),
-						"Stroke plane speed" : gui_utils.GUIDataClass("Stroke plane speed", 1),
-						"IMU Readings" : gui_utils.GUIDataClass("IMU Readings", 6),
+						"Observed torques" : gui_utils.GUIDataClass("Observed torques", 1),
 						"Wing angles" : gui_utils.GUIDataClass("Wing angles", 1),
-						"Reward" : gui_utils.GUIDataClass("Reward", 1)}
+						"Angular velocity" : gui_utils.GUIDataClass("Angular velocity", 1),
+						"Reward" : gui_utils.GUIDataClass("Reward", 1),
+						"Episode reward" : gui_utils.GUIDataClass("Episode reward", 1)}
 	
-	# gui_figs = [gui_utils.NewMPLFigure("action", "Wing torques", gui_data_classes["Wing torques"]),
-	# 			gui_utils.NewMPLFigure("action", "Stroke plane angle", gui_data_classes["Stroke plane angle"]),
-	# 			gui_utils.NewMPLFigure("next state", "IMU Readings", gui_data_classes["IMU Readings"]),
-	# 			gui_utils.NewMPLFigure("next state", "Wing angles", gui_data_classes["Wing angles"]),
-	# 			gui_utils.NewMPLFigure("reward", "Reward", gui_data_classes["Reward"])]
-
 	gui_action_figs = [gui_utils.NewMPLFigure("action", "Wing torques", gui_data_classes["Wing torques"]),
-					   gui_utils.NewMPLFigure("action", "Stroke plane angle", gui_data_classes["Stroke plane angle"]),
-					   gui_utils.NewMPLFigure("action", "Stroke plane speed", gui_data_classes["Stroke plane speed"])]
-	gui_state_figs = [gui_utils.NewMPLFigure("next state", "IMU Readings", gui_data_classes["IMU Readings"]),
-					  gui_utils.NewMPLFigure("next state", "Wing angles", gui_data_classes["Wing angles"])]
-	gui_reward_figs = [gui_utils.NewMPLFigure("reward", "Reward", gui_data_classes["Reward"])]
+					   gui_utils.NewMPLFigure("action", "Observed torques", gui_data_classes["Observed torques"])]
+	gui_state_figs = [gui_utils.NewMPLFigure("next state", "Wing angles", gui_data_classes["Wing angles"]),
+					  gui_utils.NewMPLFigure("next state", "Angular velocity", gui_data_classes["Angular velocity"])]
+	gui_reward_figs = [gui_utils.NewMPLFigure("reward", "Reward", gui_data_classes["Reward"]),
+					   gui_utils.NewMPLFigure("episode reward", "Episode reward", gui_data_classes["Episode reward"])]
 
 	gui_figs = [gui_action_figs,
 				gui_state_figs,
@@ -86,26 +61,37 @@ def main():
 	for gui_fig_type in gui_figs:
 		lines_sets = [fig.lines for fig in gui_fig_type]
 
+	# Threads
+	ai_test_thread = threading.Thread(target=pc_threads.Threads.ai_main_test,
+								 	  args=(action_queue,))
+	ai_main_thread = threading.Thread(target=pc_threads.Threads.ai_main,
+									  args=(action_state_combo_queue, 
+									  		action_queue, 
+									  		"infinte res",
+									  		gui_data_classes,
+									  		pi_client,
+									  		pc_server))
+	send_actions_thread = threading.Thread(target=pc_threads.Threads.send_actions_main,
+										   args=(pc_server, action_queue))
+	recv_combos_thread = threading.Thread(target=pc_threads.Threads.recv_combos_main,
+										  args=(pi_client, action_state_combo_queue))
+	# Init GUI and animation
 	gui_app = gui_framework.GUI(gui_figs)
 
 	anis = [animation.FuncAnimation(fig.figure, 
 									gui_utils.MPLAnimation.animate,
-									interval=1000, # make this large enough so it doesn't lag!
+									interval=150, # make this large enough so it doesn't lag!
 									fargs=[fig, action_state_combo_queue])
 									for fig in list(itertools.chain.from_iterable(gui_figs))]
+	# Start threads
 	print("Starting")
 	# ai_test_thread.start()
 	ai_main_thread.start()
 	send_actions_thread.start()
 	# recv_combos_thread.start()
 
-	# action_state_combo_queue.join()
-	# action_queue.join()
-
+	# Start GUI
 	gui_app.mainloop()
-
-	# GUI Mainloop
-
 
 if __name__ == '__main__':
 	main()

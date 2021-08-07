@@ -20,9 +20,13 @@ class GUI(tk.Tk):
 		action_tab = ttk.Frame(tab_parent)
 		next_state_tab = ttk.Frame(tab_parent)
 		reward_tab = ttk.Frame(tab_parent)
+		ep_reward_tab = ttk.Frame(tab_parent)
+		
 		tabs = {"action" : action_tab,
 				"next state" : next_state_tab,
-				"reward" : reward_tab}
+				"reward" : reward_tab,
+				"episode reward" : ep_reward_tab
+				}
 
 
 		tab_name = ""
@@ -37,19 +41,3 @@ class GUI(tk.Tk):
 				container.grid_rowconfigure(row_i, weight=1)
 				row_i += 1
 		tab_parent.pack(fill='both')
-
-
-		# col_i = 0
-
-		# for gui_fig_type in gui_figs:
-		# 	row_i = 0
-		# 	col_i += 1
-		# 	for f in gui_fig_type:	
-		# 		bfig = gui_utils.NewTkFigure(container, controller=self, f=f.figure)
-		# 		bfig.grid(row=row_i, column=col_i, sticky="nsew")
-		# 		container.grid_rowconfigure(row_i, weight=1)
-		# 		container.grid_columnconfigure(col_i, weight=1)
-		# 		row_i += 1
-
-
-

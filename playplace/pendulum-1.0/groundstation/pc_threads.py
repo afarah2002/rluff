@@ -2,21 +2,26 @@ import time
 import numpy as np
 
 from groundstation.ai_utils.options import AITechniques
+from groundstation.ai_utils.rewards import Rewards 
 
 class Threads:
 
 	def ai_main(action_state_combo_queue, 
 				action_queue, 
-				technique, 
+				technique,
+				gui_data_classes, 
 				pi_client,
 				pc_server):
-		action_dim = 3
-		state_dim = 7
+
+		rewards = Rewards(gui_data_classes) # Obj used to calculate rewards
+		action_dim = 1 # Pend torque
+		state_dim = 2 # Angle, ang vel
 		AI_infinte_res = AITechniques(action_state_combo_queue,
 									  action_queue,
 									  action_dim,
 									  state_dim,
 									  technique,
+									  rewards,
 									  pi_client,
 									  pc_server)
 

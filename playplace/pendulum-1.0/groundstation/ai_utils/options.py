@@ -18,19 +18,21 @@ class AITechniques(object):
 	def __init__(self, action_state_combo_queue, 
 					   action_queue,
 					   action_dim,
-					   state_dim, 
+					   state_dim,
 					   technique,
+					   rewards, 
 					   pi_client,
 					   pc_server):
 		self.action_state_combo_queue = action_state_combo_queue
 		self.action_queue = action_queue
+		self.rewards = rewards
 		self.pi_client = pi_client
 		self.pc_server = pc_server
 
 		#-----------------class wide arguments-----------------#
 		self.parser = argparse.ArgumentParser()
 		self.parser.add_argument("--policy", default="TD3") # Policy name (TD3, DDPG or OurDDPG)
-		self.parser.add_argument("--start_timesteps", default=1, type=int)# Time steps initial random policy is used
+		self.parser.add_argument("--start_timesteps", default=1e3, type=int)# Time steps initial random policy is used
 		self.parser.add_argument("--eval_freq", default=5e3, type=int)       # How often (time steps) we evaluate
 		self.parser.add_argument("--max_timesteps", default=1e6, type=int)   # Max time steps to run environment
 		self.parser.add_argument("--expl_noise", default=0.1)                # Std of Gaussian exploration noise
@@ -89,6 +91,7 @@ class AITechniques(object):
 		episode_reward = 0
 		episode_timesteps = 0
 		episode_num = 0
+		action_num = 0
 
 		for t in range(int(self.args.max_timesteps)):
 			# time.sleep(1)
@@ -96,7 +99,8 @@ class AITechniques(object):
 			# Select action randomly or according to policy
 			if t < self.args.start_timesteps:
 				# Action must be within allowable ranges
-				action = np.random.rand(self.action_dim)
+				# action = np.random.rand(self.action_dim).clip(-self.max_action, max_action)
+				action = np.array([random.uniform(-1., 1.) for i in range(self.action_dim)])
 			else:
 				# print("NOT RANDOM")
 				action = (
@@ -105,7 +109,13 @@ class AITechniques(object):
 				).clip(-self.max_action, self.max_action)
 
 			# Perform action
-			next_state, reward, done = self.step(action, t, state)
+			action_num += 1
+			next_state, reward, done = self.step(action, 
+												 action_num, 
+												 t, 
+												 episode_num, 
+												 state, 
+												 episode_reward)
 			# Store data in replay buffer
 			state = next_state
 			episode_reward += reward[0]
@@ -121,7 +131,8 @@ class AITechniques(object):
 				state, done = self.reset(), False
 				episode_reward = 0
 				episode_timesteps = 0
-				episode_num = 0
+				episode_num += 1
+				action_num = 0
 
 			# Evaluate episode
 			# if (t + 1) % self.args.eval_freq == 0:
@@ -130,27 +141,42 @@ class AITechniques(object):
 
 
 
-	def step(self, action, t, state):
+	def step(self, 
+			 action, 
+			 action_num, 
+			 t, 
+			 episode_num, 
+			 state, 
+			 episode_reward):
 		# Act here
-		# - Convert action array into action data pack
-		# - Add action to action queue
-		# - Read action-state combo from action-state-combo queue
-		# - Return the next state and the reward
+		# Convert [0,1] action fron NN into usable array
 		action = self.convert_NN_action_to_Pi_action(action, state)
-		action_data_pack = self.convert_action_to_action_pack(action, t)
-		# self.pc_server.send_data_pack(action_data_pack)
+		# Convert action array into action data pack
+		action_data_pack = self.convert_action_to_action_pack(action, action_num, t)
+		# Add action to action queue (send to pi)
 		self.action_queue.put(action_data_pack)
-		# time.sleep(0.02)
+		# Read action-state combo from action-state-combo queue (receive from pi)
 		combo_data_pack = self.pi_client.receive_data_pack()
+
+		# Data from combo_data_pack
+		combo_data = combo_data_pack
+		next_state = self.get_next_state_from_combo(combo_data)
+		# done = self.get_ep_status_from_combo(combo_data)
+		# Calculate reward from combo, get episode state
+		reward, done = self.get_reward(combo_data)
+		# Return the next state and the reward
 		print(combo_data_pack)
 		print("\n")
+
+		# reward = self.get_reward_from_combo(combo_data)
+		# Add reward and episode reward to combo pack
+		combo_data_pack["reward"] = {"Time" : t,
+									 "Reward" : reward}
+
+		combo_data_pack["episode reward"] = {"Time" : episode_num,
+									 		 "Episode reward" : [episode_reward + reward[0]]}
+
 		self.action_state_combo_queue.put(combo_data_pack)
-
-		combo_data = combo_data_pack
-		next_state = self.get_state_from_combo(combo_data)
-		reward = self.get_reward_from_combo(combo_data)
-		done = self.get_ep_status_from_combo(combo_data)
-
 		return next_state, reward, done
 
 	def convert_NN_action_to_Pi_action(self, action, state):
@@ -158,37 +184,22 @@ class AITechniques(object):
 		# output to values that can actually be sent to 
 		# the Pi hardware/motors
 		action_copy = np.array(action).copy()
-		
-		wing_angle = state[-1]
-		if wing_angle > 160:
-			action[0] = -2.5*abs(action_copy[0]) # wing torque
-		if wing_angle < 20:
-			action[0] = 2.5*abs(action_copy[0])
-
-		action[1] = np.array((action_copy[1]-0.5)*10).clip(-10., 10)
-		# action[1] = (action[1] - 0.5)*10 # stroke_plane_d_theta, max change is +/- 5 deg
-		# action[2] = np.abs(action[2]*100) # ang vel to speed pct
-		action[2] = np.array(abs(action_copy[2])*100).clip(75,100)# ang vel to speed pct
-		print(action)
-
+		action[0] = 2.5*action_copy[0]
 		return action
 
-	def convert_action_to_action_pack(self, action, t):
+	def convert_action_to_action_pack(self, action, action_num, t):
 		# Takes an action and converts it into the dictionary
 		# that is passed into the action queue
 		wing_torque = action[0]
-		stroke_plane_d_theta = action[1]
-		stroke_plane_speed = action[2]
 
 		action_data_pack = {"Time" : t,
-							"Wing torques" : [wing_torque],
-							"Stroke plane angle" : [stroke_plane_d_theta],
-							"Stroke plane speed" : [stroke_plane_speed]
+							"Action num" : action_num,
+							"Wing torques" : [wing_torque]
 							}
 
 		return action_data_pack
 
-	def get_state_from_combo(self, combo_data):
+	def get_next_state_from_combo(self, combo_data):
 		# Separates the state from the combo 
 		# into a usable 1D array
 		next_state = []
@@ -198,6 +209,11 @@ class AITechniques(object):
 					next_state.append(state_value)
 
 		return next_state
+
+	def get_reward(self, combo_data):
+		# reward = self.rewards.reward_1(combo_data)
+		reward, done = self.rewards.reward_2(combo_data)
+		return reward, done
 
 	def get_reward_from_combo(self, combo_data):
 		# Separates the reward from the combo
