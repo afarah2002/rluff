@@ -71,23 +71,26 @@ class MPLAnimation:
 			data_class.XData.append(new_x)
 			data_class.YData.append(new_y)
 
-			if len(data_class.XData) >= 50:
-				del data_class.XData[0]
-				del data_class.YData[0]
+			XData_copy = data_class.XData.copy()
+			YData_copy = data_class.YData.copy()
+
+			if len(XData_copy) >= 50 and fig_name != "Episode reward":
+				del XData_copy[0:-50]
+				del YData_copy[0:-50]
 
 			# print(data_class.YData)
-			YData_transposed = np.array(data_class.YData.copy()).T
+			YData_transposed = np.array(YData_copy.copy()).T
 			for lnum, line in enumerate(line_set):
-				line.set_data(data_class.XData, YData_transposed[lnum])
+				line.set_data(XData_copy, YData_transposed[lnum])
 
 			plot.axes.relim()
 			plot.axes.autoscale_view()
 
-			if np.max(data_class.YData) > max_y:
-				max_y = np.max(data_class.YData)
+			if np.max(YData_copy) > max_y:
+				max_y = np.max(YData_copy)
 
-			if np.min(data_class.YData) < min_y:
-				min_y = np.min(data_class.YData)
+			if np.min(YData_copy) < min_y:
+				min_y = np.min(YData_copy)
 
 			plot.set_ylim([min_y, max_y])
 
