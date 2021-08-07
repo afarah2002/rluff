@@ -13,15 +13,47 @@ class Wings(object):
 
 	def ang_pos(self):
 		'''
-		For now, observes the angle 
-		based on the shadow count of
-		the motors
+		Observes the angle (in deg)
+		of the pendulum
 		'''
 		ang_pos_pack = []
 		for m in self.motors:
-			ang_pos = self.odrive.read_shadow_pos(m)
+			ang_pos = self.odrive.read_angle(m)
 			ang_pos_pack.append(ang_pos)
 		return ang_pos_pack
+
+	def ang_vel(self):
+		'''
+		Observes the angular velocity (in deg/s)
+		of the pendulum
+		'''
+		ang_vel_pack = []
+		for m in self.motors:
+			ang_vel = self.odrive.read_ang_vel(m)
+			ang_vel_pack.append(ang_vel)
+		return ang_vel_pack
+
+	def mot_cur(self):
+		'''
+		Measures the current through motors
+		Displays currents in action section of GUI
+		'''
+		mot_cur_pack = []
+		for m in self.motors:
+			Iq_measured = self.odrive.read_current(m)
+			mot_cur_pack.append(Iq_measured)
+		return mot_cur_pack
+
+	def mot_trq(self):
+		'''
+		Measures the torque through applied by motor
+		Displays measured torques in action section of GUI
+		'''
+		mot_cur_pack = []
+		for m in self.motors:
+			Iq_measured = self.odrive.read_trq(m)
+			mot_cur_pack.append(Iq_measured)
+		return mot_cur_pack
 
 class IMU(object):
 

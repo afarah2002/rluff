@@ -12,7 +12,7 @@
 # def config(odrv0):
 # 	odrv0.config.dc_max_negative_current = -0.01
 # 	axes = [odrv0.axis0,
-# 			odrv0.axis1]
+# 			odrv0.axis0]
 
 # 	for axis in axes:
 # 		axis.motor.config.current_lim = 10
@@ -57,17 +57,17 @@ print("starting calibration...")
 my_drive.axis0.requested_state = AXIS_STATE_FULL_CALIBRATION_SEQUENCE
 while my_drive.axis0.current_state != AXIS_STATE_IDLE:
     time.sleep(0.1)
-# my_drive.axis1.requested_state = AXIS_STATE_FULL_CALIBRATION_SEQUENCE
-# while my_drive.axis1.current_state != AXIS_STATE_IDLE:
+# my_drive.axis0.requested_state = AXIS_STATE_FULL_CALIBRATION_SEQUENCE
+# while my_drive.axis0.current_state != AXIS_STATE_IDLE:
 #     time.sleep(0.1)
 
 
+dump_errors(my_drive, True)
+# time.sleep(10)
 
 my_drive.axis0.requested_state = AXIS_STATE_CLOSED_LOOP_CONTROL
-# my_drive.axis1.requested_state = AXIS_STATE_CLOSED_LOOP_CONTROL
+# my_drive.axis0.requested_state = AXIS_STATE_CLOSED_LOOP_CONTROL
 
-dump_errors(my_drive)
-# time.sleep(10)
 
 # To read a value, simply read the property
 print("Bus voltage is " + str(my_drive.vbus_voltage) + "V")
@@ -86,6 +86,7 @@ while True:
     setpoint = 10000.0 * math.sin((time.monotonic() - t0)*2)
     # setpoint = input("Position: ")
     print("goto " + str(int(setpoint)))
+    my_drive.axis0.requested_state = AXIS_STATE_CLOSED_LOOP_CONTROL
     my_drive.axis0.controller.input_pos = setpoint
     dump_errors(my_drive, True)
     time.sleep(0.01)
