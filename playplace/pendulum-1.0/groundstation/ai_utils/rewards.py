@@ -217,7 +217,8 @@ class Rewards(object):
 		avg_abs_ang_vel = np.mean(np.absolute(prev_ang_vel)) # avg of abs val of ang vel
 		diff = abs(avg_abs_ang_vel - target_vel)
 
-		reward = [100/diff - abs(wing_torque[0]) - diff/10 - constraint_pain + 10]
+		reward = [100/diff - abs(wing_torque[0]) - diff/10 - constraint_pain]
+		# reward = [100/diff - abs(wing_torque[0]) - diff/10 - constraint_pain + 10]
 
 		# Episode ends after 1000 actions
 		if action_num == 1000:

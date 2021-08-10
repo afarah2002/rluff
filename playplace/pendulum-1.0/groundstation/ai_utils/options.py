@@ -116,13 +116,13 @@ class AITechniques(object):
 				).clip(-self.max_action, self.max_action)
 
 			# Perform action
-			action_num += 1
 			next_state, reward, done = self.step(action, 
 												 action_num, 
 												 t, 
 												 episode_num, 
 												 state, 
 												 episode_reward)
+			action_num += 1
 			# Store data in replay buffer
 			state = next_state
 			episode_reward += reward[0]
