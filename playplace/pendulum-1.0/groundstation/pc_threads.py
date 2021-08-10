@@ -14,11 +14,11 @@ class Threads:
 				action_state_combo_queue, 
 				action_queue, 
 				technique,
-				gui_data_classes, 
+				data_classes, 
 				pi_client,
 				pc_server):
 
-		rewards = Rewards(gui_data_classes) # Obj used to calculate rewards
+		rewards = Rewards(data_classes) # Obj used to calculate rewards
 		action_dim = 1 # Pend torque
 		state_dim = 2 # Angle, ang vel
 		AI_infinte_res = AITechniques(test_num,
@@ -73,18 +73,33 @@ class Threads:
 			action_state_combo_queue.put(combo_data_pack)
 			# print("Put data in combo")
 
-	def save_data_main(gui_data_classes, test_num):
-		test_data_main_loc = "test_data/" + test_num + "/"
+	def save_data_main(data_classes, test_num, target, combo_queue):
+
+		test_data_main_loc = f"test_data/{test_num}_{target}/"
 		pathlib.Path(test_data_main_loc).mkdir(parents=True, exist_ok=True)
 		
+
 		while True:
-			for data_dir, data_class in gui_data_classes.items():
-				
-				data_loc = test_data_main_loc + data_dir + "/"
+			combo_data = combo_queue.get()
+
+			# for data_dir, data_class in data_classes.items():
+
+			for data_dir, data_class in data_classes.items():
+				tab_name = data_class.tab_name
+
+				new_x = combo_data[tab_name]["Time"]
+				new_y = combo_data[tab_name][data_dir]
+
+				data_class.XData.append(new_x)
+				data_class.YData.append(new_y)
+
+				# print(data_class.YData)
+
+				data_loc = f"{test_data_main_loc}{data_dir}/"
 				pathlib.Path(data_loc).mkdir(parents=True, exist_ok=True)
 				
-				x_file_loc = data_loc + "XData.txt"
-				y_file_loc = data_loc + "YData.txt"
+				x_file_loc = f"{data_loc}XData.txt"
+				y_file_loc = f"{data_loc}YData.txt"
 				
 				with open(x_file_loc, "wb") as xp:
 					pickle.dump(data_class.XData, xp)

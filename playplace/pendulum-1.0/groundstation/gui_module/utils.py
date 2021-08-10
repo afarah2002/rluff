@@ -13,7 +13,8 @@ class GUIDataClass(object):
 	x and y(s) data are stored
 	'''
 
-	def __init__(self, DC_name, num_lines):
+	def __init__(self, tab_name, DC_name, num_lines):
+		self.tab_name = tab_name
 		self.data_class_name = DC_name
 		self.num_lines = num_lines
 		self.XData = [0]
@@ -25,10 +26,10 @@ class NewMPLFigure(object):
 	New MPL 2D figure object, capable of 
 	displaying multiple ys for a single x
 	'''
-	def __init__(self, tab_name, fig_name, data_class):
-		self.tab_name = tab_name
-		self.fig_name = fig_name
+	def __init__(self, data_class):
 		self.data_class = data_class
+		self.tab_name = data_class.tab_name
+		self.fig_name = data_class.data_class_name
 		self.figure = mplfig.Figure(figsize=(6,2), dpi=200)
 		self.axs = self.figure.add_subplot(111)
 		self.axs.grid()
@@ -52,7 +53,7 @@ class NewTkFigure(tk.Frame):
 
 class MPLAnimation:
 
-	def animate(i, fig, combo_queue):
+	def animate(i, fig):
 		tab_name = fig.tab_name
 		fig_name = fig.fig_name
 		line_set = fig.lines 
@@ -62,39 +63,35 @@ class MPLAnimation:
 		max_y = 0
 		min_y = 0
 
+		# combo_data = combo_queue.get()
+		# if combo_data:
+			# new_x = combo_data[tab_name]["Time"]
+			# new_y = combo_data[tab_name][fig_name]
 
-		combo_data = combo_queue.get()
-		if combo_data:
-			new_x = combo_data[tab_name]["Time"]
-			new_y = combo_data[tab_name][fig_name]
+			# data_class.XData.append(new_x)
+			# data_class.YData.append(new_y)
 
-			data_class.XData.append(new_x)
-			data_class.YData.append(new_y)
+		XData_copy = data_class.XData.copy()
+		YData_copy = data_class.YData.copy()
 
-			XData_copy = data_class.XData.copy()
-			YData_copy = data_class.YData.copy()
+		if len(XData_copy) >= 50 and fig_name != "Episode reward":
+			del XData_copy[0:-50]
+			del YData_copy[0:-50]
 
-			if len(XData_copy) >= 50 and fig_name != "Episode reward":
-				del XData_copy[0:-50]
-				del YData_copy[0:-50]
+		# print(data_class.XData)
+		YData_transposed = np.array(YData_copy.copy()).T
+		for lnum, line in enumerate(line_set):
+			line.set_data(XData_copy, YData_transposed[lnum])
 
-			# print(data_class.YData)
-			YData_transposed = np.array(YData_copy.copy()).T
-			for lnum, line in enumerate(line_set):
-				line.set_data(XData_copy, YData_transposed[lnum])
+		plot.axes.relim()
+		plot.axes.autoscale_view()
 
-			plot.axes.relim()
-			plot.axes.autoscale_view()
+		if np.max(YData_copy) > max_y:
+			max_y = np.max(YData_copy)
 
-			if np.max(YData_copy) > max_y:
-				max_y = np.max(YData_copy)
+		if np.min(YData_copy) < min_y:
+			min_y = np.min(YData_copy)
 
-			if np.min(YData_copy) < min_y:
-				min_y = np.min(YData_copy)
+		plot.set_ylim([min_y, max_y])
 
-			plot.set_ylim([min_y, max_y])
-
-			fig.figure.canvas.draw_idle()
-
-		else:
-			pass
+		fig.figure.canvas.draw_idle()
