@@ -36,6 +36,8 @@ class Threads:
 		# State setup
 		odrive = wing_torque_motor.odrive
 		wing_observer = observe.Wings(odrive, motors)
+		FAILSAFE_BOOL = False
+		resume_timestep = 0
 
 		while 1:
 			# action_data = action_queue.get()
@@ -49,9 +51,36 @@ class Threads:
 				# There is a time lag for the motors to move, 
 				# Do not run the motors in a separate thread
 
+				time_step_name = "Time"
+				time_step = action_data[time_step_name]
+
 				# Actions
 				wing_torque = float(action_data["Wing torques"][0])
 				action_num = int(action_data["Action num"])
+
+				# --- SPEED FAILSAFE - KEEPS BREAKING THE PENDULUM!!!
+				current_speed = abs(wing_observer.ang_vel()[0])
+				current_angle = abs(wing_observer.ang_pos()[0])
+				vel_upper_bound = 1000 # deg/s
+				ang_upper_bound = 90
+				wait_period = 200 # timesteps
+
+				# if current_speed >= vel_upper_bound:
+				if current_angle >= ang_upper_bound:
+					print("\n\n\n\n FAILSAFE REACHED \n\n\n\n")
+					FAILSAFE_BOOL = True
+					resume_timestep = time_step + wait_period
+
+				if FAILSAFE_BOOL:
+					print("Slowing down.........")
+					# Stop the motor from adding more torque
+					wing_torque = 0
+					# Update action data w/ 0 torque
+					action_data["Wing torques"] = [0]
+
+				if time_step > resume_timestep:
+					FAILSAFE_BOOL = False				
+				# --- --- --- --- --- --- --- --- --- --- --- --- --- 
 
 				# Act
 				wing_torque_motor.turn(wing_torque)
@@ -62,8 +91,6 @@ class Threads:
 				action_data["Wing torques"].extend(measured_torque)
 
 				# States
-				time_step_name = "Time"
-				time_step = action_data[time_step_name]
 
 				state_1_name = "Wing angles"
 				state_1 = wing_observer.ang_pos()
