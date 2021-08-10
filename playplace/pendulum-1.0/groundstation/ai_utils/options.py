@@ -1,6 +1,7 @@
 import os
 import random
 import numpy as np
+import pathlib
 import argparse 
 import time
 import sys
@@ -15,7 +16,9 @@ sys.path.append("../..")
 
 class AITechniques(object):
 
-	def __init__(self, action_state_combo_queue, 
+	def __init__(self, test_num, 
+					   target,
+					   action_state_combo_queue, 
 					   action_queue,
 					   action_dim,
 					   state_dim,
@@ -23,6 +26,8 @@ class AITechniques(object):
 					   rewards, 
 					   pi_client,
 					   pc_server):
+		self.test_num = test_num
+		self.target = target
 		self.action_state_combo_queue = action_state_combo_queue
 		self.action_queue = action_queue
 		self.rewards = rewards
@@ -44,7 +49,9 @@ class AITechniques(object):
 		self.parser.add_argument("--policy_freq", default=2, type=int)       # Frequency of delayed policy updates
 
 		self.args = self.parser.parse_args()
-		self.file_name = f"{self.args.policy}"
+		self.dir_name = f"models/{self.test_num}_{self.target}"
+		self.file_name = f"{self.test_num}_{self.target}"
+		pathlib.Path(f"{self.dir_name}").mkdir(parents=True, exist_ok=True)  # Make dir for storing models
 
 		self.action_dim = action_dim
 		self.state_dim = state_dim
@@ -128,11 +135,16 @@ class AITechniques(object):
 				# +1 to account for 0 indexing. 0+ on ep_timesteps since it will increment +1 even if done=True
 				# print(f"Total T: {t+1} Episode Num: {episode_num+1} Episode T: {episode_timesteps} Reward: {episode_reward:.3f}")
 				# Reset env
+				# Save model
+				print(f"\n\n Episode {episode_num}: Total Reward: {episode_reward}\n\n")
 				state, done = self.reset(), False
 				episode_reward = 0
 				episode_timesteps = 0
 				episode_num += 1
 				action_num = 0
+
+
+				self.policy.save(f"{self.dir_name}/{self.file_name}")
 
 			# Evaluate episode
 			# if (t + 1) % self.args.eval_freq == 0:
@@ -164,7 +176,8 @@ class AITechniques(object):
 		# done = self.get_ep_status_from_combo(combo_data)
 		# Calculate reward from combo, get episode state
 		reward, done = self.get_reward(combo_data)
-		# Return the next state and the reward
+		# Return the next state and the rewardta) > 5 and fig_name == "Angular velocity":
+			# 	data_class.YData[-2] = [np
 		print(combo_data_pack)
 		print("\n")
 
@@ -184,13 +197,16 @@ class AITechniques(object):
 		# output to values that can actually be sent to 
 		# the Pi hardware/motors
 		action_copy = np.array(action).copy()
-		action[0] = 2.5*action_copy[0]
+		action[0] = 0.05*action_copy[0]
+		# action[0] = 0.25
 		return action
 
 	def convert_action_to_action_pack(self, action, action_num, t):
 		# Takes an action and converts it into the dictionary
 		# that is passed into the action queue
+
 		wing_torque = action[0]
+		# wing_torque = 0
 
 		action_data_pack = {"Time" : t,
 							"Action num" : action_num,
@@ -212,7 +228,7 @@ class AITechniques(object):
 
 	def get_reward(self, combo_data):
 		# reward = self.rewards.reward_1(combo_data)
-		reward, done = self.rewards.reward_2(combo_data)
+		reward, done = self.rewards.reward_5(combo_data, self.target)
 		return reward, done
 
 	def get_reward_from_combo(self, combo_data):

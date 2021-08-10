@@ -29,6 +29,10 @@ def build_pc_server(pc_IP):
 
 def main():
 
+	test_num = "018"
+	target = 261 # ang vel, deg/s
+	GUI = False
+
 	# Comms
 	pi_IP = "192.168.1.95"
 	pi_client = build_pi_client(pi_IP)
@@ -40,7 +44,7 @@ def main():
 	action_state_combo_queue = multiprocessing.Queue()
 
 	# GUI data 
-	gui_data_classes = {"Wing torques" : gui_utils.GUIDataClass("Wing torques", 1),
+	gui_data_classes = {"Wing torques" : gui_utils.GUIDataClass("Wing torques", 2),
 						"Observed torques" : gui_utils.GUIDataClass("Observed torques", 1),
 						"Wing angles" : gui_utils.GUIDataClass("Wing angles", 1),
 						"Angular velocity" : gui_utils.GUIDataClass("Angular velocity", 1),
@@ -65,7 +69,9 @@ def main():
 	ai_test_thread = threading.Thread(target=pc_threads.Threads.ai_main_test,
 								 	  args=(action_queue,))
 	ai_main_thread = threading.Thread(target=pc_threads.Threads.ai_main,
-									  args=(action_state_combo_queue, 
+									  args=(test_num,
+									  		target,
+									  		action_state_combo_queue, 
 									  		action_queue, 
 									  		"infinte res",
 									  		gui_data_classes,
@@ -75,23 +81,29 @@ def main():
 										   args=(pc_server, action_queue))
 	recv_combos_thread = threading.Thread(target=pc_threads.Threads.recv_combos_main,
 										  args=(pi_client, action_state_combo_queue))
-	# Init GUI and animation
-	gui_app = gui_framework.GUI(gui_figs)
+	save_data_thread = threading.Thread(target=pc_threads.Threads.save_data_main,
+										args=(gui_data_classes, test_num))
 
-	anis = [animation.FuncAnimation(fig.figure, 
-									gui_utils.MPLAnimation.animate,
-									interval=150, # make this large enough so it doesn't lag!
-									fargs=[fig, action_state_combo_queue])
-									for fig in list(itertools.chain.from_iterable(gui_figs))]
+	# Init GUI and animation
+	if GUI:
+		gui_app = gui_framework.GUI(gui_figs)
+
+		anis = [animation.FuncAnimation(fig.figure, 
+										gui_utils.MPLAnimation.animate,
+										interval=150, # make this large enough so it doesn't lag!
+										fargs=[fig, action_state_combo_queue])
+										for fig in list(itertools.chain.from_iterable(gui_figs))]
 	# Start threads
 	print("Starting")
 	# ai_test_thread.start()
 	ai_main_thread.start()
 	send_actions_thread.start()
+	save_data_thread.start()
 	# recv_combos_thread.start()
 
 	# Start GUI
-	gui_app.mainloop()
+	if GUI:
+		gui_app.mainloop()
 
 if __name__ == '__main__':
 	main()

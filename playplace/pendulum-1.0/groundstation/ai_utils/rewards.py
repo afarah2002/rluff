@@ -59,7 +59,10 @@ class Rewards(object):
 		
 		return reward, done
 
-	def reward_2(self, combo_data):
+	def reward_2(self, combo_data, target):
+		'''
+		RATIONAL FUNC
+		'''
 		wing_torque = combo_data["action"]["Wing torques"]
 		action_num = combo_data["action"]["Action num"]
 		next_ang_pos = combo_data["next state"]["Wing angles"]
@@ -80,12 +83,141 @@ class Rewards(object):
 		np.append(prev_ang_vel, next_ang_vel)
 
 		# Calculate reward
-		target_vel = 422 # deg/s
+		target_vel = target # deg/s
 		avg_abs_trq = np.mean(np.absolute(prev_wing_trq))
 		avg_abs_ang_vel = np.mean(np.absolute(prev_ang_vel)) # avg of abs val of ang vel
 		diff = abs(avg_abs_ang_vel - target_vel)
 
 		reward = [100/diff - abs(wing_torque[0])]
+
+		# Episode ends after 1000 actions
+		if action_num == 1000:
+			done = True
+		else:
+			done = False
+		
+		return reward, done
+
+	def reward_3(self, combo_data, target):
+		'''
+		HYPERBOLA
+		'''
+		wing_torque = combo_data["action"]["Wing torques"]
+		action_num = combo_data["action"]["Action num"]
+		next_ang_pos = combo_data["next state"]["Wing angles"]
+		next_ang_vel = combo_data["next state"]["Angular velocity"]
+
+		# Make copies of data class subsets
+		prev_depth = 100 # number of recent elements used
+		if len(wing_torque) < 100:
+			prev_depth = len(wing_torque)
+
+		prev_wing_trq = np.array(self.gui_data_classes["Wing torques"].YData[-prev_depth:])
+		prev_ang_pos = np.array(self.gui_data_classes["Wing angles"].YData[-prev_depth:])
+		prev_ang_vel = np.array(self.gui_data_classes["Angular velocity"].YData[-prev_depth:])
+
+		# Update copies of data class subsets
+		np.append(prev_wing_trq, wing_torque)
+		np.append(prev_ang_pos, next_ang_pos)
+		np.append(prev_ang_vel, next_ang_vel)
+
+		# Calculate reward
+		target_vel = target # deg/s
+		avg_abs_trq = np.mean(np.absolute(prev_wing_trq))
+		avg_abs_ang_vel = np.mean(np.absolute(prev_ang_vel)) # avg of abs val of ang vel
+		diff = abs(avg_abs_ang_vel - target_vel)
+
+		reward = [100/diff - abs(wing_torque[0])*diff]
+
+		# Episode ends after 1000 actions
+		if action_num == 1000:
+			done = True
+		else:
+			done = False
+		
+		return reward, done
+
+	def reward_4(self, combo_data, target):
+		'''
+		HYPERBOLA
+		Constraints on position mimic pain if it tries to break itself
+		'''
+		wing_torque = combo_data["action"]["Wing torques"]
+		action_num = combo_data["action"]["Action num"]
+		next_ang_pos = combo_data["next state"]["Wing angles"]
+		next_ang_vel = combo_data["next state"]["Angular velocity"]
+
+		# Make copies of data class subsets
+		prev_depth = 500 # number of recent elements used
+		if len(wing_torque) < prev_depth:
+			prev_depth = len(wing_torque)
+
+		prev_wing_trq = np.array(self.gui_data_classes["Wing torques"].YData[-prev_depth:])
+		prev_ang_pos = np.array(self.gui_data_classes["Wing angles"].YData[-prev_depth:])
+		prev_ang_vel = np.array(self.gui_data_classes["Angular velocity"].YData[-prev_depth:])
+
+		# Update copies of data class subsets
+		np.append(prev_wing_trq, wing_torque)
+		np.append(prev_ang_pos, next_ang_pos)
+		np.append(prev_ang_vel, next_ang_vel)
+
+		# Calculate reward
+		target_vel = target # deg/s
+		pos_constraint = 50
+		constraint_pain = 0
+		if abs(next_ang_pos[0]) > pos_constraint:
+			constraint_pain = 200
+
+		avg_abs_trq = np.mean(np.absolute(prev_wing_trq))
+		avg_abs_ang_vel = np.mean(np.absolute(prev_ang_vel)) # avg of abs val of ang vel
+		diff = abs(avg_abs_ang_vel - target_vel)
+
+		reward = [100/diff - abs(wing_torque[0])*diff - constraint_pain]
+
+		# Episode ends after 1000 actions
+		if action_num == 1000:
+			done = True
+		else:
+			done = False
+		
+		return reward, done	
+
+	def reward_5(self, combo_data, target):
+		'''
+		HYPERBOLA
+		Constraints on position mimic pain if it tries to break itself
+		'''
+		wing_torque = combo_data["action"]["Wing torques"]
+		action_num = combo_data["action"]["Action num"]
+		next_ang_pos = combo_data["next state"]["Wing angles"]
+		next_ang_vel = combo_data["next state"]["Angular velocity"]
+
+		# Make copies of data class subsets
+		prev_depth = 500 # number of recent elements used
+		if len(wing_torque) < prev_depth:
+			prev_depth = len(wing_torque)
+
+		prev_wing_trq = np.array(self.gui_data_classes["Wing torques"].YData[-prev_depth:])
+		prev_ang_pos = np.array(self.gui_data_classes["Wing angles"].YData[-prev_depth:])
+		prev_ang_vel = np.array(self.gui_data_classes["Angular velocity"].YData[-prev_depth:])
+
+		# Update copies of data class subsets
+		np.append(prev_wing_trq, wing_torque)
+		np.append(prev_ang_pos, next_ang_pos)
+		np.append(prev_ang_vel, next_ang_vel)
+
+		# Calculate reward
+		target_vel = target # deg/s
+		pos_constraint = 50
+		constraint_pain = 0
+		if abs(next_ang_pos[0]) > pos_constraint:
+			constraint_pain = 10
+
+		avg_abs_trq = np.mean(np.absolute(prev_wing_trq))
+		avg_abs_ang_vel = np.mean(np.absolute(prev_ang_vel)) # avg of abs val of ang vel
+		diff = abs(avg_abs_ang_vel - target_vel)
+
+		reward = [100/diff - abs(wing_torque[0]) - diff/10 - constraint_pain + 10]
 
 		# Episode ends after 1000 actions
 		if action_num == 1000:
