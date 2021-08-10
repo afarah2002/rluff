@@ -1,12 +1,17 @@
 import time
+import pickle
 import numpy as np
+import pathlib
+import os
 
 from groundstation.ai_utils.options import AITechniques
 from groundstation.ai_utils.rewards import Rewards 
 
 class Threads:
 
-	def ai_main(action_state_combo_queue, 
+	def ai_main(test_num,
+				target,
+				action_state_combo_queue, 
 				action_queue, 
 				technique,
 				gui_data_classes, 
@@ -16,7 +21,9 @@ class Threads:
 		rewards = Rewards(gui_data_classes) # Obj used to calculate rewards
 		action_dim = 1 # Pend torque
 		state_dim = 2 # Angle, ang vel
-		AI_infinte_res = AITechniques(action_state_combo_queue,
+		AI_infinte_res = AITechniques(test_num,
+									  target,
+									  action_state_combo_queue,
 									  action_queue,
 									  action_dim,
 									  state_dim,
@@ -65,4 +72,24 @@ class Threads:
 			# print("Received:", combo_data_pack)
 			action_state_combo_queue.put(combo_data_pack)
 			# print("Put data in combo")
+
+	def save_data_main(gui_data_classes, test_num):
+		test_data_main_loc = "test_data/" + test_num + "/"
+		pathlib.Path(test_data_main_loc).mkdir(parents=True, exist_ok=True)
+		
+		while True:
+			for data_dir, data_class in gui_data_classes.items():
+				
+				data_loc = test_data_main_loc + data_dir + "/"
+				pathlib.Path(data_loc).mkdir(parents=True, exist_ok=True)
+				
+				x_file_loc = data_loc + "XData.txt"
+				y_file_loc = data_loc + "YData.txt"
+				
+				with open(x_file_loc, "wb") as xp:
+					pickle.dump(data_class.XData, xp)
+				with open(y_file_loc, "wb") as yp:
+					pickle.dump(data_class.YData, yp)
+
+
 
