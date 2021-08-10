@@ -68,9 +68,9 @@ class ODrive(object):
 		self.odrv0 = odrive.find_any()
 		self.axes = [self.odrv0.axis0,
 					 self.odrv0.axis1]
-		# self.tune(1)
 		self.zeros = [0,0]
 		for m in motors:
+			# self.tune(m)
 			self.calibrate(m)
 			self.find_zero(m)
 
@@ -92,7 +92,8 @@ class ODrive(object):
 		axis.requested_state = AXIS_STATE_FULL_CALIBRATION_SEQUENCE
 		while axis.current_state != AXIS_STATE_IDLE:
 			time.sleep(0.01)
-		self.turn_pos(axis_num, axis.encoder.pos_estimate)
+		# axis.controller.config.input_mode = INPUT_MODE_PASSTHROUGH
+		# self.turn_pos(axis_num, axis.encoder.pos_estimate)
 
 	def turn_pos(self, axis_num, pos):
 		axis = self.axes[axis_num]
@@ -108,6 +109,7 @@ class ODrive(object):
 
 	def turn_trq(self, axis_num, trq):
 		axis = self.axes[axis_num]
+		# axis.controller.input_mode = INPUT_MODE_TORQUE_RAMP
 		axis.controller.config.control_mode = CONTROL_MODE_TORQUE_CONTROL
 		axis.requested_state = AXIS_STATE_CLOSED_LOOP_CONTROL
 		axis.controller.input_torque = trq
@@ -127,13 +129,19 @@ class ODrive(object):
 		ang_vel = raw_ang_vel*360 # deg/s
 		return ang_vel
 
-	def read_current(self, axis_num):
+	def read_measured_current(self, axis_num):
 		axis = self.axes[axis_num]
 		Iq_measured = axis.motor.current_control.Iq_measured # A
 		return Iq_measured
 
+	def read_setpoint_current(self, axis_num):
+		axis = self.axes[axis_num]
+		Iq_setpoint = axis.motor.current_control.Iq_setpoint # A
+		return Iq_setpoint
+
+
 	def read_trq(self, axis_num):
-		trq_measured = self.read_current(axis_num)*8.27 # Nm
+		trq_measured = self.read_measured_current(axis_num)*8.27/400. # Nm
 		return trq_measured
 
 

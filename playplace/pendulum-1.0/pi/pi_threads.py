@@ -57,8 +57,9 @@ class Threads:
 				wing_torque_motor.turn(wing_torque)
 
 				# Measure torque AFTER acting
-				motor_currents = wing_observer.mot_cur()
-				action_data["Observed torques"] = motor_currents
+				measured_torque = wing_observer.mot_trq()
+				action_data["Observed torques"] = measured_torque
+				action_data["Wing torques"].extend(measured_torque)
 
 				# States
 				time_step_name = "Time"

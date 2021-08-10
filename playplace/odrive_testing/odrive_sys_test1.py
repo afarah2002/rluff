@@ -14,8 +14,8 @@ class ODrive(object):
 		self.odrv0 = odrive.find_any()
 		self.axes = [self.odrv0.axis0,
 					 self.odrv0.axis1]
-		# self.tune(0)
-		self.calibrate(0)
+		self.tune(0)
+		# self.calibrate(0)
 		dump_errors(self.odrv0, True)
 		self.zero = 0
 		self.find_zero(0)
@@ -31,10 +31,20 @@ class ODrive(object):
 		# axis.controller.config.pos_gain = 20.0
 		# axis.controller.config.vel_gain = 0.16
 		# axis.controller.config.vel_integrator_gain = 0.32
+		#-----------------anticogging-----------------#
+		# axis.controller.config.pos_gain = 20.0
+		# axis.controller.config.vel_gain = 0.01
+		# axis.controller.config.vel_integrator_gain = 0.05
+		#------------------------------------------#
+		# axis.controller.config.pos_gain = 2.5
+		# axis.controller.config.vel_gain = 0.009
+		# axis.controller.config.vel_integrator_gain = 0.5*(1/0.05)*axis.controller.config.vel_gain
 		#------------------------------------------#
 		axis.controller.config.pos_gain = 2.5
-		axis.controller.config.vel_gain = 0.02
-		axis.controller.config.vel_integrator_gain = 0.5*(1/.5)*axis.controller.config.vel_gain
+		axis.controller.config.vel_gain = 0.018
+		axis.controller.config.vel_integrator_gain = 0.05
+
+
 		self.odrv0.save_configuration()
 
 	def calibrate(self, axis_num):
