@@ -1,4 +1,5 @@
 import numpy as np
+import math
 
 class Rewards(object):
 
@@ -193,7 +194,7 @@ class Rewards(object):
 		next_ang_vel = combo_data["next state"]["Angular velocity"]
 
 		# Make copies of data class subsets
-		prev_depth = 500 # number of recent elements used
+		prev_depth = 100 # number of recent elements used
 		if len(wing_torque) < prev_depth:
 			prev_depth = len(wing_torque)
 
@@ -212,6 +213,8 @@ class Rewards(object):
 		constraint_pain = 0
 		if abs(next_ang_pos[0]) > pos_constraint:
 			constraint_pain = 10
+		if abs(next_ang_pos[0]) > 85:
+			constraint_pain = 10000
 
 		avg_abs_trq = np.mean(np.absolute(prev_wing_trq))
 		avg_abs_ang_vel = np.mean(np.absolute(prev_ang_vel)) # avg of abs val of ang vel
@@ -228,3 +231,111 @@ class Rewards(object):
 		
 		return reward, done
 
+	def reward_6(self, combo_data, target):
+		'''
+		The faster it goes (bounded by angles), the more it is rewarded
+		'''
+		wing_torque = combo_data["action"]["Wing torques"]
+		action_num = combo_data["action"]["Action num"]
+		next_ang_pos = combo_data["next state"]["Wing angles"]
+		next_ang_vel = combo_data["next state"]["Angular velocity"]
+
+		# Make copies of data class subsets
+		prev_depth = 100 # number of recent elements used
+		if np.size(wing_torque,0) < prev_depth:
+			prev_depth = len(wing_torque)
+
+		prev_wing_trq = self.gui_data_classes["Wing torques"].YData[-prev_depth:,:]
+		prev_ang_pos = self.gui_data_classes["Wing angles"].YData[-prev_depth:,:]
+		prev_ang_vel = self.gui_data_classes["Angular velocity"].YData[-prev_depth:,:]
+
+		# Update copies of data class subsets
+		np.append(prev_wing_trq, wing_torque)
+		np.append(prev_ang_pos, next_ang_pos)
+		np.append(prev_ang_vel, next_ang_vel)
+
+		# Calculate reward
+		# target_vel = target # deg/s
+		# pos_constraint = 50
+		constraint_pain = 0
+		# if abs(next_ang_pos[0]) > pos_constraint:
+		# 	constraint_pain = 1000
+
+		avg_abs_trq = np.mean(np.absolute(prev_wing_trq))
+		avg_abs_ang_vel = np.mean(np.absolute(prev_ang_vel)) # avg of abs val of ang vel
+		# diff = abs(avg_abs_ang_vel - target_vel)
+
+		# reward = [100/diff - abs(wing_torque[0]) - diff/10 - constraint_pain]
+		# reward = [100/diff - abs(wing_torque[0]) - diff/10 - constraint_pain + 10]
+		reward = [avg_abs_ang_vel/100 - 100*abs(wing_torque[0]) - constraint_pain]
+
+		# Episode ends after 1000 actions
+		if action_num == 1000:
+			done = True
+		else:
+			done = False
+		
+		return reward, done
+
+	def reward_7(self, combo_data, target):
+		'''
+		Instead of targeting a velocity, it targets a frequency 
+		In the case of a natural pendulum, this would be the max
+		angular velocity divided by the max angle
+		'''
+		wing_torque = combo_data["action"]["Wing torques"]
+		action_num = combo_data["action"]["Action num"]
+		next_ang_pos = combo_data["next state"]["Wing angles"]
+		next_ang_vel = combo_data["next state"]["Angular velocity"]
+
+		# Make copies of data class subsets
+		prev_depth = 100 # number of recent elements used
+		if len(wing_torque) < prev_depth:
+			prev_depth = len(wing_torque)
+
+
+		prev_wing_trq = np.array(self.gui_data_classes["Wing torques"].YData[-prev_depth:])
+		prev_ang_pos = np.array(self.gui_data_classes["Wing angles"].YData[-prev_depth:])
+		prev_ang_vel = np.array(self.gui_data_classes["Angular velocity"].YData[-prev_depth:])
+		prev_time = np.array(self.gui_data_classes["Angular velocity"].YData[-prev_depth:])
+
+		# Update copies of data class subsets
+		np.append(prev_wing_trq, wing_torque)
+		np.append(prev_ang_pos, next_ang_pos)
+		np.append(prev_ang_vel, next_ang_vel)
+
+		# Calculate reward
+		# target_vel = target # deg/s
+		# pos_constraint = 50
+		# constraint_pain = 0
+		# if abs(next_ang_pos[0]) > pos_constraint:
+		# 	constraint_pain = 10
+
+		avg_abs_trq = np.mean(np.absolute(prev_wing_trq))
+		avg_abs_ang_vel = np.mean(np.absolute(prev_ang_vel)) # avg of abs val of ang vel
+
+		# min_velocity_index = np.argmin(np.absolute(prev_ang_vel[-50:])) # Where the max angle occurs, in the last 50 actions
+		max_ang_vel = np.amax(np.absolute(prev_ang_vel[-50:])) # Maximum velocity
+		# t_min_velocity = prev_time[min_velocity_index] # Time where max angle occurs
+		max_angle = np.amax(np.absolute(prev_ang_pos[-50:]))
+
+		try:
+			obs_ang_freq = float(max_ang_vel/max_angle)
+		except RuntimeWarning:
+			obs_ang_freq = 2
+			
+		target_freq = target
+
+		diff = abs(obs_ang_freq - target_freq)
+		print(obs_ang_freq)
+
+		# reward = [100/diff - abs(wing_torque[0]) - diff/10 - constraint_pain]
+		reward = [0.01/diff - abs(wing_torque[0]) - diff]
+
+		# Episode ends after 1000 actions
+		if action_num == 1000:
+			done = True
+		else:
+			done = False
+		
+		return reward, done

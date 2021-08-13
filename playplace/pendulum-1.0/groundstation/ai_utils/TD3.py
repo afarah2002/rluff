@@ -101,7 +101,7 @@ class TD3(object):
 		return self.actor(state).cpu().data.numpy().flatten()
 
 
-	def train(self, replay_buffer, batch_size=256):
+	def train(self, replay_buffer, batch_size=32):
 		self.total_it += 1
 
 		# Sample replay buffer 

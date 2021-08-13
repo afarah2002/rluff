@@ -29,9 +29,9 @@ def build_pc_server(pc_IP):
 
 def main():
 
-	test_num = "023"
-	target = 261 # ang vel, deg/s
-	GUI = False
+	test_num = "041"
+	target = 200 # ang vel, deg/s
+	GUI = True
 
 	# Comms
 	pi_IP = "192.168.1.95"
@@ -48,6 +48,7 @@ def main():
 					"Observed torques" : gui_utils.GUIDataClass("action", "Observed torques", 1),
 					"Wing angles" : gui_utils.GUIDataClass("next state", "Wing angles", 1),
 					"Angular velocity" : gui_utils.GUIDataClass("next state", "Angular velocity", 1),
+					"Real time" : gui_utils.GUIDataClass("next state", "Real time", 1),
 					"Reward" : gui_utils.GUIDataClass("reward", "Reward", 1),
 					"Episode reward" : gui_utils.GUIDataClass("episode reward", "Episode reward", 1)}
 	

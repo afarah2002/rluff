@@ -17,8 +17,9 @@ class GUIDataClass(object):
 		self.tab_name = tab_name
 		self.data_class_name = DC_name
 		self.num_lines = num_lines
-		self.XData = [0]
-		self.YData = [np.zeros(self.num_lines)]
+		self.XData = np.zeros(1)
+		# self.YData = np.array([np.zeros(self.num_lines)])
+		self.YData = np.zeros((1,self.num_lines))
 
 class NewMPLFigure(object):
 
@@ -74,12 +75,12 @@ class MPLAnimation:
 		XData_copy = data_class.XData.copy()
 		YData_copy = data_class.YData.copy()
 
-		if len(XData_copy) >= 50 and fig_name != "Episode reward":
-			del XData_copy[0:-50]
-			del YData_copy[0:-50]
+		if np.size(XData_copy,0) >= 50 and fig_name != "Episode reward":
+			XData_copy = np.delete(XData_copy,np.s_[0:-50],0)
+			YData_copy = np.delete(YData_copy,np.s_[0:-50],0)
 
 		# print(data_class.XData)
-		YData_transposed = np.array(YData_copy.copy()).T
+		YData_transposed = YData_copy.copy().T
 		for lnum, line in enumerate(line_set):
 			line.set_data(XData_copy, YData_transposed[lnum])
 
