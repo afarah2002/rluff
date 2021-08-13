@@ -60,6 +60,7 @@ from odrive.enums import *
 from odrive.utils import *
 import time
 import math
+from datetime import datetime
 import numpy as np
 
 class ODrive(object):
@@ -71,7 +72,11 @@ class ODrive(object):
 		self.zeros = [0,0]
 		for m in motors:
 			# self.tune(m)
-			self.calibrate(m)
+			calib_bool = input("Calibrate? Enter y/n")
+			if calib_bool == "y":
+				self.calibrate(m)
+			else:
+				pass
 			self.find_zero(m)
 
 	def tune(self, axis_num):
@@ -127,6 +132,7 @@ class ODrive(object):
 		axis = self.axes[axis_num]
 		raw_ang_vel = axis.encoder.vel_estimate # turn/s
 		ang_vel = raw_ang_vel*360 # deg/s
+		
 		return ang_vel
 
 	def read_measured_current(self, axis_num):

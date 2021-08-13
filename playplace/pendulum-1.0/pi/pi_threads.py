@@ -9,6 +9,11 @@ from odrive.utils import *
 import pi.interact.act as act
 import pi.interact.observe as observe
 
+motors = [0] # one motor
+# motors = [0,1] # both motors
+wing_torque_motor = act.WingTorque(motors)
+odrive_mod = wing_torque_motor.odrive
+
 class Threads:
 
 	def recv_actions_main(client, action_queue):
@@ -28,20 +33,15 @@ class Threads:
 
 		# Action setup
 		# stroke_plane_motor = act.StrokePlane([17,27,22,23])
-		
-		motors = [0] # one motor
-		# motors = [0,1] # both motors
-		wing_torque_motor = act.WingTorque(motors)
 
 		# State setup
-		odrive = wing_torque_motor.odrive
-		wing_observer = observe.Wings(odrive, motors)
+		wing_observer = observe.Wings(odrive_mod, motors)
 		FAILSAFE_BOOL = False
 		resume_timestep = 0
 
 		while 1:
 			# action_data = action_queue.get()
-			dump_errors(odrive.odrv0, True)
+			dump_errors(odrive_mod.odrv0, True)
 			action_data = client.receive_data_pack()
 			if action_data:
 				# Turn motors here
@@ -77,6 +77,8 @@ class Threads:
 					wing_torque = 0
 					# Update action data w/ 0 torque
 					action_data["Wing torques"] = [0]
+					for m in motors:
+						odrive_mod.turn_pos(m, 0)
 
 				if time_step > resume_timestep:
 					FAILSAFE_BOOL = False				
@@ -96,24 +98,18 @@ class Threads:
 				state_1 = wing_observer.ang_pos()
 
 				state_2_name = "Angular velocity"
-				state_2 = wing_observer.ang_vel()
+				state_2 = [0 for m in motors]
+
+				state_3_name = "Real time"
+				state_3 = [time.time()]
 
 				state_data = {time_step_name : time_step,
 							  state_1_name : state_1,
-							  state_2_name : state_2}
-
-				rand_done = np.random.rand(1)
-				if rand_done > 0.95: # 5% chance (for now)
-					done = True
-				else:
-					done = False
-
-				done_data = {time_step_name : time_step,
-							 "done" : done}
+							  state_2_name : state_2,
+							  state_3_name : state_3}
 
 				combo_data_pack = {"action" : action_data, 
 								   "next state" : state_data,
-								   "done" : done_data
 								   }
 
 				print(combo_data_pack)
@@ -135,4 +131,5 @@ class Threads:
 				server.send_data_pack(combo_data_pack)
 			else:
 				pass
+
 
