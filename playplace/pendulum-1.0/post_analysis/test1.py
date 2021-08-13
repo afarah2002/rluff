@@ -13,8 +13,8 @@ def read_raw_data(test_num, # Name of dir in test_data/
 	return data
 
 def main():
-	data_dir = "022_261"
-	fig_name = "Wing torques"
+	data_dir = "041_200"
+	fig_name = "Episode reward"
 
 	x = read_raw_data(data_dir, fig_name, "X")
 	y = read_raw_data(data_dir, fig_name, "Y")

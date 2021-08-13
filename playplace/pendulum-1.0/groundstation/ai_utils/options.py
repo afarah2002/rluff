@@ -1,8 +1,9 @@
 import os
 import random
-import numpy as np
 import pathlib
+import numpy as np
 import argparse 
+import torch
 import time
 import sys
 
@@ -23,7 +24,8 @@ class AITechniques(object):
 					   action_dim,
 					   state_dim,
 					   technique,
-					   rewards, 
+					   rewards,
+					   data_classes, 
 					   pi_client,
 					   pc_server):
 		self.test_num = test_num
@@ -31,6 +33,7 @@ class AITechniques(object):
 		self.action_state_combo_queue = action_state_combo_queue
 		self.action_queue = action_queue
 		self.rewards = rewards
+		self.data_classes = data_classes
 		self.pi_client = pi_client
 		self.pc_server = pc_server
 
@@ -106,7 +109,6 @@ class AITechniques(object):
 			# Select action randomly or according to policy
 			if t < self.args.start_timesteps:
 				# Action must be within allowable ranges
-				# action = np.random.rand(self.action_dim).clip(-self.max_action, max_action)
 				action = np.array([random.uniform(-1., 1.) for i in range(self.action_dim)])
 			else:
 				# print("NOT RANDOM")
@@ -116,13 +118,13 @@ class AITechniques(object):
 				).clip(-self.max_action, self.max_action)
 
 			# Perform action
+			action_num += 1
 			next_state, reward, done = self.step(action, 
 												 action_num, 
 												 t, 
 												 episode_num, 
 												 state, 
 												 episode_reward)
-			action_num += 1
 			# Store data in replay buffer
 			state = next_state
 			episode_reward += reward[0]
@@ -143,8 +145,10 @@ class AITechniques(object):
 				episode_num += 1
 				action_num = 0
 
+				# Maybe this will speed up training??
 
 				self.policy.save(f"{self.dir_name}/{self.file_name}")
+			torch.cuda.empty_cache()
 
 			# Evaluate episode
 			# if (t + 1) % self.args.eval_freq == 0:
@@ -172,12 +176,21 @@ class AITechniques(object):
 
 		# Data from combo_data_pack
 		combo_data = combo_data_pack
+
+		# Compute angular velocity - USING ANG POS DERIV
+		ang_vel_depth = 5
+		d_ang_pos = np.array(self.data_classes["Wing angles"].YData)[:,0]
+		d_real_time = np.array(self.data_classes["Real time"].YData)[:,0]
+		if len(d_ang_pos) > ang_vel_depth:
+			ang_vel = np.mean(np.diff(d_ang_pos[-ang_vel_depth:]))/np.mean(np.diff(d_real_time[-ang_vel_depth:]))
+			# Update combo_data with new ang_vel
+			combo_data["next state"	]["Angular velocity"] = [ang_vel]
+
 		next_state = self.get_next_state_from_combo(combo_data)
 		# done = self.get_ep_status_from_combo(combo_data)
 		# Calculate reward from combo, get episode state
 		reward, done = self.get_reward(combo_data)
-		# Return the next state and the rewardta) > 5 and fig_name == "Angular velocity":
-			# 	data_class.YData[-2] = [np
+		# Return the next state and the reward
 		print(combo_data_pack)
 		print("\n")
 
@@ -220,7 +233,7 @@ class AITechniques(object):
 		# into a usable 1D array
 		next_state = []
 		for state_name, state in combo_data["next state"].items():
-			if state_name != "Time":
+			if state_name != "Time" and state_name != "Real time":
 				for state_value in state:
 					next_state.append(state_value)
 
@@ -228,7 +241,7 @@ class AITechniques(object):
 
 	def get_reward(self, combo_data):
 		# reward = self.rewards.reward_1(combo_data)
-		reward, done = self.rewards.reward_5(combo_data, self.target)
+		reward, done = self.rewards.reward_6(combo_data, self.target)
 		return reward, done
 
 	def get_reward_from_combo(self, combo_data):
@@ -236,12 +249,6 @@ class AITechniques(object):
 		# into a single value
 		reward = combo_data["reward"]["Reward"]
 		return reward
-
-	def get_ep_status_from_combo(self, combo_data):
-		# Separates the episodes status from the combo
-		# Returns done as True or False
-		done = combo_data["done"]["done"]
-		return done
 
 	def reset(self):
 		# Reset the wings and stroke plane to 0 degrees

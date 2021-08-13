@@ -29,6 +29,7 @@ class Threads:
 									  state_dim,
 									  technique,
 									  rewards,
+									  data_classes,
 									  pi_client,
 									  pc_server)
 
@@ -82,18 +83,18 @@ class Threads:
 		while True:
 			combo_data = combo_queue.get()
 
-			# for data_dir, data_class in data_classes.items():
-
 			for data_dir, data_class in data_classes.items():
 				tab_name = data_class.tab_name
 
-				new_x = combo_data[tab_name]["Time"]
+				new_x = [combo_data[tab_name]["Time"]]
 				new_y = combo_data[tab_name][data_dir]
 
-				data_class.XData.append(new_x)
-				data_class.YData.append(new_y)
+				# data_class.XData.append(new_x)
+				# data_class.YData.append(new_y)
 
-				# print(data_class.YData)
+				data_class.XData = np.append(data_class.XData, new_x)
+				data_class.YData = np.append(data_class.YData, new_y).reshape(
+								   len(data_class.XData),len(new_y))
 
 				data_loc = f"{test_data_main_loc}{data_dir}/"
 				pathlib.Path(data_loc).mkdir(parents=True, exist_ok=True)
