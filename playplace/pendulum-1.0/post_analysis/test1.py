@@ -13,11 +13,11 @@ def read_raw_data(test_num, # Name of dir in test_data/
 	return data
 
 def main():
-	data_dir = "041_200"
+	data_dir = "080_127"
 	fig_name = "Episode reward"
 
-	x = read_raw_data(data_dir, fig_name, "X")
-	y = read_raw_data(data_dir, fig_name, "Y")
+	x = list(read_raw_data(data_dir, fig_name, "X"))
+	y = list(read_raw_data(data_dir, fig_name, "Y"))
 
 	fig, ax = plt.subplots()
 	ax.grid()

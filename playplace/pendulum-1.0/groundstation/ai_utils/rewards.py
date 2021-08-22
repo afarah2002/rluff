@@ -256,10 +256,10 @@ class Rewards(object):
 
 		# Calculate reward
 		# target_vel = target # deg/s
-		# pos_constraint = 50
+		pos_constraint = 50
 		constraint_pain = 0
-		# if abs(next_ang_pos[0]) > pos_constraint:
-		# 	constraint_pain = 1000
+		if abs(next_ang_pos[0]) > pos_constraint:
+			constraint_pain = 1000
 
 		avg_abs_trq = np.mean(np.absolute(prev_wing_trq))
 		avg_abs_ang_vel = np.mean(np.absolute(prev_ang_vel)) # avg of abs val of ang vel
@@ -339,3 +339,133 @@ class Rewards(object):
 			done = False
 		
 		return reward, done
+
+
+	def reward_8(self, combo_data, target):
+
+		wing_torque = combo_data["action"]["Wing torques"]
+		action_num = combo_data["action"]["Action num"]
+		next_ang_pos = combo_data["next state"]["Wing angles"]
+		next_ang_vel = combo_data["next state"]["Angular velocity"]
+
+		# Make copies of data class subsets
+		prev_depth = 100 # number of recent elements used
+		if len(wing_torque) < prev_depth:
+			prev_depth = len(wing_torque)
+
+		prev_wing_trq = np.array(self.gui_data_classes["Wing torques"].YData[-prev_depth:])
+		prev_ang_pos = np.array(self.gui_data_classes["Wing angles"].YData[-prev_depth:])
+		prev_ang_vel = np.array(self.gui_data_classes["Angular velocity"].YData[-prev_depth:])
+
+		# Update copies of data class subsets
+		np.append(prev_wing_trq, wing_torque)
+		np.append(prev_ang_pos, next_ang_pos)
+		np.append(prev_ang_vel, next_ang_vel)
+
+		# Calculate reward
+
+		target_ang_vel = float(target) # deg/s
+		bound_ang = 50. # deg
+
+		avg_ang_pos = np.mean(np.absolute(prev_ang_pos))
+		avg_abs_trq = np.mean(np.absolute(prev_wing_trq))
+		avg_abs_ang_vel = np.mean(np.absolute(prev_ang_vel)) # avg of abs val of ang vel
+
+		ang_vel = next_ang_vel[0]
+		ang_pos = next_ang_pos[0]
+
+		# ang_vel = avg_abs_ang_vel
+		# ang_pos = avg_ang_pos
+
+		if ang_vel == 0:
+			ang_vel = 0.001
+
+		# Instantaneous - uses current/next state
+		reward = [-20*abs(np.log(abs(ang_vel/target_ang_vel))) 
+				  - abs(wing_torque[0]) + (-ang_pos**2 + bound_ang**2)/100 + 20]
+
+		# reward = [-(ang_vel - target_ang_vel)**2/1000 - abs(wing_torque[0])
+		# 			 + (-(ang_pos)**2 + bound_ang**2)/100]
+
+		# Episode ends after 1000 actions
+		if action_num == 1000:
+			done = True
+		else:
+			done = False
+
+		return reward, done
+		
+	def reward_9(self, combo_data, target):
+
+		wing_torque = combo_data["action"]["Wing torques"]
+		action_num = combo_data["action"]["Action num"]
+		next_ang_pos = combo_data["next state"]["Wing angles"]
+		next_ang_vel = combo_data["next state"]["Angular velocity"]
+		real_time = combo_data["next state"]["Real time"]
+
+		# Make copies of data class subsets
+		prev_depth = 100 # number of recent elements used
+		if len(wing_torque) < prev_depth:
+			prev_depth = len(wing_torque)
+
+		prev_wing_trq = np.array(self.gui_data_classes["Wing torques"].YData[-prev_depth:])
+		prev_ang_pos = np.array(self.gui_data_classes["Wing angles"].YData[-prev_depth:])
+		prev_ang_vel = np.array(self.gui_data_classes["Angular velocity"].YData[-prev_depth:])
+		prev_real_time = np.array(self.gui_data_classes["Real time"].YData[-prev_depth:])
+
+		# Update copies of data class subsets
+		np.append(prev_wing_trq, wing_torque)
+		np.append(prev_ang_pos, next_ang_pos)
+		np.append(prev_ang_vel, next_ang_vel)
+		np.append(prev_real_time, real_time)
+
+		# Calculate reward
+
+		# Calculate frequency from FFT
+
+		if prev_depth > 100:
+			y_fft = np.fft.fft(prev_ang_pos)
+			y_fft = y_fft[:round(len(prev_real_time)/2)]
+			y_fft = np.abs(y_fft) 
+			y_fft = y_fft/max(y_fft) 
+			freq_axis = np.linspace(0,400,len(y_fft))
+
+			f_loc = np.argmax(y_fft)
+			f_val = freq_axis[f_loc]
+
+			print(f"Observed frequency f = {f_val}")
+		else:
+			f_val = 0.001
+
+
+		target_freq = float(target) # deg/s
+		bound_ang = 50. # deg
+
+		avg_ang_pos = np.mean(np.absolute(prev_ang_pos))
+		avg_abs_trq = np.mean(np.absolute(prev_wing_trq))
+		avg_abs_ang_vel = np.mean(np.absolute(prev_ang_vel)) # avg of abs val of ang vel
+
+		ang_vel = next_ang_vel[0]
+		ang_pos = next_ang_pos[0]
+
+		# ang_vel = avg_abs_ang_vel
+		# ang_pos = avg_ang_pos
+
+		if ang_vel == 0:
+			ang_vel = 0.001
+
+		# Instantaneous - uses current/next state
+		# reward = [-20*abs(np.log(abs(ang_vel/target_ang_vel))) 
+		# 		  - abs(wing_torque[0]) + (-ang_pos**2 + bound_ang**2)/100]
+
+		reward = [-20*abs(np.log(abs(f_val/target_freq))) 
+				  - abs(wing_torque[0]) + (-(ang_pos)**2 + bound_ang**2)/100]
+
+		# Episode ends after 1000 actions
+		if action_num == 1000:
+			done = True
+		else:
+			done = False
+
+		return reward, done
+		

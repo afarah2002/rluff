@@ -6,6 +6,7 @@ import os
 
 from groundstation.ai_utils.options import AITechniques
 from groundstation.ai_utils.rewards import Rewards 
+from groundstation.ai_utils.rewards_1 import Rewards_1
 
 class Threads:
 
@@ -18,7 +19,8 @@ class Threads:
 				pi_client,
 				pc_server):
 
-		rewards = Rewards(data_classes) # Obj used to calculate rewards
+		# rewards = Rewards(data_classes) # Obj used to calculate rewards
+		rewards = Rewards_1(data_classes) # Obj used to calculate rewards
 		action_dim = 1 # Pend torque
 		state_dim = 2 # Angle, ang vel
 		AI_infinte_res = AITechniques(test_num,
@@ -87,14 +89,22 @@ class Threads:
 				tab_name = data_class.tab_name
 
 				new_x = [combo_data[tab_name]["Time"]]
-				new_y = combo_data[tab_name][data_dir]
+
+				if data_class.data_class_name == "Angular velocity" or data_class.data_class_name == "Wing angles":
+					new_y = combo_data[tab_name][data_dir]*data_class.num_lines
+				else:
+					new_y = combo_data[tab_name][data_dir]
 
 				# data_class.XData.append(new_x)
 				# data_class.YData.append(new_y)
 
-				data_class.XData = np.append(data_class.XData, new_x)
-				data_class.YData = np.append(data_class.YData, new_y).reshape(
-								   len(data_class.XData),len(new_y))
+				if new_x not in data_class.XData:
+					data_class.XData = np.append(data_class.XData, new_x)
+					data_class.YData = np.append(data_class.YData, new_y).reshape(
+									   len(data_class.XData),len(new_y))
+				else:
+					data_class.XData[-1] = new_x[0]
+					data_class.YData[-1] = new_y
 
 				data_loc = f"{test_data_main_loc}{data_dir}/"
 				pathlib.Path(data_loc).mkdir(parents=True, exist_ok=True)

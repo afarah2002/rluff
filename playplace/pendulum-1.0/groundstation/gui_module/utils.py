@@ -75,10 +75,21 @@ class MPLAnimation:
 		XData_copy = data_class.XData.copy()
 		YData_copy = data_class.YData.copy()
 
+		# XData_unique = set(XData_copy)
+
+		# if fig_name == "Episode reward":
+		# 	for x in XData_unique:
+		# 		unique, counts = np.unique(XData_copy)
+		# 		ref_dict = dict(zip(unique,counts))
+		# 		if ref_dict[x] > 1:
+		# 			index = min(min(np.where(XData_copy==x)))
+		# 			YData_copy = np.delete(YData_copy,index)
+		# 	XData_copy = np.array(XData_unique)
+
 		if np.size(XData_copy,0) >= 50 and fig_name != "Episode reward":
 			XData_copy = np.delete(XData_copy,np.s_[0:-50],0)
 			YData_copy = np.delete(YData_copy,np.s_[0:-50],0)
-
+			
 		# print(data_class.XData)
 		YData_transposed = YData_copy.copy().T
 		for lnum, line in enumerate(line_set):
@@ -94,5 +105,6 @@ class MPLAnimation:
 			min_y = np.min(YData_copy)
 
 		plot.set_ylim([min_y, max_y])
+		plot.set_xlim([XData_copy[0], XData_copy[-1]])
 
 		fig.figure.canvas.draw_idle()

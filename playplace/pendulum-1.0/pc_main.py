@@ -29,8 +29,8 @@ def build_pc_server(pc_IP):
 
 def main():
 
-	test_num = "041"
-	target = 200 # ang vel, deg/s
+	test_num = "081"
+	target = 100 # ang vel, deg/s
 	GUI = True
 
 	# Comms
@@ -46,8 +46,8 @@ def main():
 	# Data class init 
 	data_classes = {"Wing torques" : gui_utils.GUIDataClass("action", "Wing torques", 2),
 					"Observed torques" : gui_utils.GUIDataClass("action", "Observed torques", 1),
-					"Wing angles" : gui_utils.GUIDataClass("next state", "Wing angles", 1),
-					"Angular velocity" : gui_utils.GUIDataClass("next state", "Angular velocity", 1),
+					"Wing angles" : gui_utils.GUIDataClass("next state", "Wing angles", 2),
+					"Angular velocity" : gui_utils.GUIDataClass("next state", "Angular velocity", 2),
 					"Real time" : gui_utils.GUIDataClass("next state", "Real time", 1),
 					"Reward" : gui_utils.GUIDataClass("reward", "Reward", 1),
 					"Episode reward" : gui_utils.GUIDataClass("episode reward", "Episode reward", 1)}
@@ -94,7 +94,7 @@ def main():
 
 		anis = [animation.FuncAnimation(fig.figure, 
 										gui_utils.MPLAnimation.animate,
-										interval=150, # make this large enough so it doesn't lag!
+										interval=100, # make this large enough so it doesn't lag!
 										fargs=[fig])
 										for fig in list(itertools.chain.from_iterable(gui_figs))]
 	# Start threads
