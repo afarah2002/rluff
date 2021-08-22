@@ -76,7 +76,7 @@ class Threads:
 					# Stop the motor from adding more torque
 					wing_torque = 0
 					# Update action data w/ 0 torque
-					action_data["Wing torques"] = [0]
+					action_data["Wing torques"] = [0] #<--- NO! DON'T REWARD THE AI FOR THIS!!!
 					for m in motors:
 						odrive_mod.turn_pos(m, 0)
 
