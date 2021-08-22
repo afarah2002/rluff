@@ -40,7 +40,7 @@ class AITechniques(object):
 		#-----------------class wide arguments-----------------#
 		self.parser = argparse.ArgumentParser()
 		self.parser.add_argument("--policy", default="TD3") # Policy name (TD3, DDPG or OurDDPG)
-		self.parser.add_argument("--start_timesteps", default=1e3, type=int)# Time steps initial random policy is used
+		self.parser.add_argument("--start_timesteps", default=10e3, type=int)# Time steps initial random policy is used
 		self.parser.add_argument("--eval_freq", default=5e3, type=int)       # How often (time steps) we evaluate
 		self.parser.add_argument("--max_timesteps", default=1e6, type=int)   # Max time steps to run environment
 		self.parser.add_argument("--expl_noise", default=0.1)                # Std of Gaussian exploration noise
@@ -211,6 +211,7 @@ class AITechniques(object):
 		# the Pi hardware/motors
 		action_copy = np.array(action).copy()
 		action[0] = 0.05*action_copy[0]
+		# action[0] = 0.01*action_copy[0]
 		# action[0] = 0.25
 		return action
 
@@ -241,7 +242,7 @@ class AITechniques(object):
 
 	def get_reward(self, combo_data):
 		# reward = self.rewards.reward_1(combo_data)
-		reward, done = self.rewards.reward_6(combo_data, self.target)
+		reward, done = self.rewards.reward_2(combo_data, self.target)
 		return reward, done
 
 	def get_reward_from_combo(self, combo_data):
