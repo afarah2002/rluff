@@ -38,12 +38,13 @@ class AITechniques(object):
 		self.pc_server = pc_server
 
 		#-----------------class wide arguments-----------------#
+		torch.cuda.empty_cache()
 		self.parser = argparse.ArgumentParser()
 		self.parser.add_argument("--policy", default="TD3") # Policy name (TD3, DDPG or OurDDPG)
-		self.parser.add_argument("--start_timesteps", default=10e3, type=int)# Time steps initial random policy is used
+		self.parser.add_argument("--start_timesteps", default=2500, type=int)# Time steps initial random policy is used
 		self.parser.add_argument("--eval_freq", default=5e3, type=int)       # How often (time steps) we evaluate
 		self.parser.add_argument("--max_timesteps", default=1e6, type=int)   # Max time steps to run environment
-		self.parser.add_argument("--expl_noise", default=0.1)                # Std of Gaussian exploration noise
+		self.parser.add_argument("--expl_noise", default=0.2)                # Std of Gaussian exploration noise
 		self.parser.add_argument("--batch_size", default=256, type=int)      # Batch size for both actor and critic
 		self.parser.add_argument("--discount", default=0.99)                 # Discount factor
 		self.parser.add_argument("--tau", default=0.005)                     # Target network update rate
@@ -119,13 +120,14 @@ class AITechniques(object):
 
 			# Perform action
 			action_num += 1
-			next_state, reward, done = self.step(action, 
-												 action_num, 
-												 t, 
-												 episode_num, 
-												 state, 
-												 episode_reward)
+			action, next_state, reward, done = self.step(action, 
+												 		 action_num, 
+												 		 t, 
+														 episode_num, 
+														 state, 
+														 episode_reward)
 			# Store data in replay buffer
+			action = action/0.05 # Convert action back to [-1,1]
 			state = next_state
 			episode_reward += reward[0]
 			self.replay_buffer.add(state, action, next_state, reward, done)
@@ -187,10 +189,10 @@ class AITechniques(object):
 			combo_data["next state"	]["Angular velocity"] = [ang_vel]
 
 		next_state = self.get_next_state_from_combo(combo_data)
-		# done = self.get_ep_status_from_combo(combo_data)
 		# Calculate reward from combo, get episode state
 		reward, done = self.get_reward(combo_data)
-		# Return the next state and the reward
+		# Get the actual action from the combo_data
+		action = self.get_action_from_combo(combo_data)
 		print(combo_data_pack)
 		print("\n")
 
@@ -203,7 +205,7 @@ class AITechniques(object):
 									 		 "Episode reward" : [episode_reward + reward[0]]}
 
 		self.action_state_combo_queue.put(combo_data_pack)
-		return next_state, reward, done
+		return action, next_state, reward, done
 
 	def convert_NN_action_to_Pi_action(self, action, state):
 		# Converts the values between 0 and 1 from the NN
@@ -211,7 +213,7 @@ class AITechniques(object):
 		# the Pi hardware/motors
 		action_copy = np.array(action).copy()
 		action[0] = 0.05*action_copy[0]
-		# action[0] = 0.01*action_copy[0]
+		# action[0] = 0.01*action_copy[0] # For dT instead of T
 		# action[0] = 0.25
 		return action
 
@@ -228,6 +230,12 @@ class AITechniques(object):
 							}
 
 		return action_data_pack
+
+	def get_action_from_combo(self, combo_data):
+		# During failsafes, the action is changed to 0!!!
+		# The AI must know this when storing the action in the buffer!!
+		action = np.array([combo_data["action"]["Wing torques"][0]])
+		return action
 
 	def get_next_state_from_combo(self, combo_data):
 		# Separates the state from the combo 

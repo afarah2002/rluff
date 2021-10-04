@@ -29,8 +29,8 @@ def build_pc_server(pc_IP):
 
 def main():
 
-	test_num = "081"
-	target = 100 # ang vel, deg/s
+	test_num = "127"
+	target = 90 # ang vel, deg/s
 	GUI = True
 
 	# Comms
@@ -94,7 +94,7 @@ def main():
 
 		anis = [animation.FuncAnimation(fig.figure, 
 										gui_utils.MPLAnimation.animate,
-										interval=100, # make this large enough so it doesn't lag!
+										interval=10, # make this large enough so it doesn't lag!
 										fargs=[fig])
 										for fig in list(itertools.chain.from_iterable(gui_figs))]
 	# Start threads
