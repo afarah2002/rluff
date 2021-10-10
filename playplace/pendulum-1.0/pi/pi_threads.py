@@ -39,6 +39,9 @@ class Threads:
 		FAILSAFE_BOOL = False
 		resume_timestep = 0
 
+		# Use if action is d_tau
+		wing_torque = 0
+
 		while 1:
 			# action_data = action_queue.get()
 			dump_errors(odrive_mod.odrv0, True)
@@ -56,14 +59,22 @@ class Threads:
 
 				# Actions
 				wing_torque = float(action_data["Wing torques"][0])
+				# action_data["Wing torques"].append(wing_torque)
+
+				# if abs(wing_torque) > 0.05:
+				# 	wing_torque = 0.05*wing_torque/abs(wing_torque) # Set to max
+				# 	action_data["Wing torques"][0] = 0 # Set dT to 0
+
 				action_num = int(action_data["Action num"])
 
 				# --- SPEED FAILSAFE - KEEPS BREAKING THE PENDULUM!!!
 				current_speed = abs(wing_observer.ang_vel()[0])
+				if current_speed == 0:
+					current_speed = 0.00001
 				current_angle = abs(wing_observer.ang_pos()[0])
 				vel_upper_bound = 1000 # deg/s
 				ang_upper_bound = 90
-				wait_period = 200 # timesteps
+				wait_period = 300 # timesteps
 
 				# if current_speed >= vel_upper_bound:
 				if current_angle >= ang_upper_bound:
@@ -74,13 +85,15 @@ class Threads:
 				if FAILSAFE_BOOL:
 					print("Slowing down.........")
 					# Stop the motor from adding more torque
-					wing_torque = 0
+					# wing_torque = -0.01*wing_observer.ang_vel()[0]/current_speed
+					wing_torque = 0 
 					# Update action data w/ 0 torque
 					action_data["Wing torques"] = [0] #<--- NO! DON'T REWARD THE AI FOR THIS!!!
 					for m in motors:
 						odrive_mod.turn_pos(m, 0)
 
-				if time_step > resume_timestep:
+				# if time_step > resume_timestep:
+				if current_speed < 10 and current_angle < 10:
 					FAILSAFE_BOOL = False				
 				# --- --- --- --- --- --- --- --- --- --- --- --- --- 
 
@@ -89,9 +102,8 @@ class Threads:
 
 				# Measure torque AFTER acting
 				measured_torque = wing_observer.mot_trq()
+				action_data["Wing torques"].append(measured_torque[0])
 				action_data["Observed torques"] = measured_torque
-				action_data["Wing torques"].extend(measured_torque)
-
 				# States
 
 				state_1_name = "Wing angles"
