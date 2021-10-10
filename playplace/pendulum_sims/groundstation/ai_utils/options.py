@@ -1,7 +1,9 @@
 import os
 import random
 import pathlib
+import atexit
 import numpy as np
+import pickle
 import argparse 
 import torch
 import time
@@ -36,24 +38,30 @@ class AITechniques(object):
 		self.physics_engine = physics_engine
 
 		#-----------------class wide arguments-----------------#
-		torch.cuda.empty_cache()
+		# torch.cuda.empty_cache()
 		self.parser = argparse.ArgumentParser()
+		self.parser.add_argument("--seed", default=0, type=int)              # Sets Gym, PyTorch and Numpy seeds
 		self.parser.add_argument("--policy", default="TD3") # Policy name (TD3, DDPG or OurDDPG)
-		self.parser.add_argument("--start_timesteps", default=2500, type=int)# Time steps initial random policy is used
+		self.parser.add_argument("--start_timesteps", default=25e3, type=int)# Time steps initial random policy is used
 		self.parser.add_argument("--eval_freq", default=5e3, type=int)       # How often (time steps) we evaluate
-		self.parser.add_argument("--max_timesteps", default=1e6, type=int)   # Max time steps to run environment
-		self.parser.add_argument("--expl_noise", default=0.2)                # Std of Gaussian exploration noise
+		self.parser.add_argument("--max_timesteps", default=0.5e6, type=int)   # Max time steps to run environment
+		self.parser.add_argument("--expl_noise", default=0.1)                # Std of Gaussian exploration noise
 		self.parser.add_argument("--batch_size", default=256, type=int)      # Batch size for both actor and critic
 		self.parser.add_argument("--discount", default=0.99)                 # Discount factor
 		self.parser.add_argument("--tau", default=0.005)                     # Target network update rate
-		self.parser.add_argument("--policy_noise", default=0.2)              # Noise added to target policy during critic update
+		self.parser.add_argument("--policy_noise", default=0.5)              # Noise added to target policy during critic update
 		self.parser.add_argument("--noise_clip", default=0.5)                # Range to clip target policy noise
 		self.parser.add_argument("--policy_freq", default=2, type=int)       # Frequency of delayed policy updates
-
+		self.parser.add_argument("--load_model", default="")                 # Model load file name, "" doesn't load, "default" uses file_name
 		self.args = self.parser.parse_args()
+
 		self.dir_name = f"models/{self.test_num}_{self.target}"
 		self.file_name = f"{self.test_num}_{self.target}"
 		pathlib.Path(f"{self.dir_name}").mkdir(parents=True, exist_ok=True)  # Make dir for storing models
+
+		# Set seed
+		torch.manual_seed(self.args.seed)
+		np.random.seed(self.args.seed)
 
 		self.action_dim = action_dim
 		self.state_dim = state_dim
@@ -63,6 +71,53 @@ class AITechniques(object):
 
 		# Run the chosen technique
 		techniques[technique]
+
+	def append_data(self, combo_data):
+		for data_dir, data_class in self.data_classes.items():
+			tab_name = data_class.tab_name
+
+			new_x = [combo_data[tab_name]["Time"]]
+			
+			if data_class.data_class_name == "Angular velocity" or data_class.data_class_name == "Wing angles":
+				new_y = combo_data[tab_name][data_dir]*data_class.num_lines
+			else:
+				new_y = combo_data[tab_name][data_dir]
+
+			if new_x not in data_class.XData:
+				data_class.XData = np.append(data_class.XData, new_x)
+				data_class.YData = np.append(data_class.YData, new_y).reshape(
+								   len(data_class.XData),len(new_y))
+			else:
+				data_class.XData[-1] = new_x[0]
+				data_class.YData[-1] = new_y
+
+	def save_data(self, combo_data):
+
+		test_data_main_loc = f"test_data/{self.test_num}_{self.target}/"
+		pathlib.Path(test_data_main_loc).mkdir(parents=True, exist_ok=True)
+
+		for data_dir, data_class in self.data_classes.items():
+
+			data_loc = f"{test_data_main_loc}{data_dir}/"
+			pathlib.Path(data_loc).mkdir(parents=True, exist_ok=True)
+			
+			x_file_loc = f"{data_loc}XData.txt"
+			y_file_loc = f"{data_loc}YData.txt"
+
+			with open(x_file_loc, "wb") as xp:
+				pickle.dump(data_class.XData, xp)
+			with open(y_file_loc, "wb") as yp:
+				pickle.dump(data_class.YData, yp)
+
+			# Save data as np arrays instead
+			# x_file_loc = f"{data_loc}XData.npy"
+			# y_file_loc = f"{data_loc}YData.npy"
+
+
+			# with open(x_file_loc, "wb") as xp:
+			# 	np.save(xp, data_class.XData)
+			# with open(y_file_loc, "wb") as yp:
+			# 	np.save(yp, data_class.YData)
 
 
 	def infinite_res(self):
@@ -104,7 +159,7 @@ class AITechniques(object):
 
 		for t in range(int(self.args.max_timesteps)):
 			# time.sleep(1)
-			episode_timesteps += 10
+			episode_timesteps += 1
 			# Select action randomly or according to policy
 			if t < self.args.start_timesteps:
 				# Action must be within allowable ranges
@@ -118,27 +173,36 @@ class AITechniques(object):
 
 			# Perform action
 			action_num += 1
-			action, next_state, reward, done = self.step(action, 
-												 		 action_num, 
-												 		 t, 
-														 episode_num, 
-														 state, 
-														 episode_reward)
+			next_state, reward, done, combo_data = self.step(action, 
+													 		 action_num, 
+													 		 t, 
+															 episode_num, 
+															 state, 
+															 episode_reward)
+
 			# Store data in replay buffer
 			action = action/0.05 # Convert action back to [-1,1]
+			self.replay_buffer.add(state, action, next_state, reward, done)
+			
 			state = next_state
 			episode_reward += reward[0]
-			self.replay_buffer.add(state, action, next_state, reward, done)
+
+			# Appends the new data to the master data classes
+			self.append_data(combo_data)
 
 			# Train agent after collecting sufficient data
 			if t >= self.args.start_timesteps:
 				self.policy.train(self.replay_buffer, self.args.batch_size)
 			if done:
+				# Saves the data to a txt file
+				self.save_data(combo_data)
+				# atexit.register(self.save_data, combo_data)
 				# +1 to account for 0 indexing. 0+ on ep_timesteps since it will increment +1 even if done=True
 				# print(f"Total T: {t+1} Episode Num: {episode_num+1} Episode T: {episode_timesteps} Reward: {episode_reward:.3f}")
 				# Reset env
 				# Save model
-				print(f"\n\n Episode {episode_num}: Total Reward: {episode_reward}\n\n")
+				print(f"Episode {episode_num}: Target: {self.target}  \
+						Total Reward: {episode_reward}\n")
 				state, done = self.reset(), False
 				episode_reward = 0
 				episode_timesteps = 0
@@ -148,7 +212,7 @@ class AITechniques(object):
 				# Maybe this will speed up training??
 
 				self.policy.save(f"{self.dir_name}/{self.file_name}")
-			torch.cuda.empty_cache()
+			# torch.cuda.empty_cache()
 
 			# Evaluate episode
 			# if (t + 1) % self.args.eval_freq == 0:
@@ -164,6 +228,7 @@ class AITechniques(object):
 			 episode_num, 
 			 state, 
 			 episode_reward):
+		# time.sleep(0.01)
 		# Act here
 		# Convert [0,1] action fron NN into usable array
 		action = self.convert_NN_action_to_Pi_action(action, state)
@@ -175,7 +240,7 @@ class AITechniques(object):
 		# ACTING AND NEXT STATE GENERATION ARE HERE #
 
 		# Read action-state combo from action-state-combo queue (receive from pi)
-		combo_data_pack = self.compute_state_from_action(action, state, action_data_pack)
+		combo_data_pack = self.compute_state_from_action(t, action, state, action_data_pack)
 
 		# Data from combo_data_pack
 		combo_data = combo_data_pack
@@ -194,8 +259,8 @@ class AITechniques(object):
 		reward, done = self.get_reward(combo_data)
 		# Get the actual action from the combo_data
 		action = self.get_action_from_combo(combo_data)
-		print(combo_data_pack)
-		print("\n")
+		# print(combo_data_pack)
+		# print("\n")
 
 		# reward = self.get_reward_from_combo(combo_data)
 		# Add reward and episode reward to combo pack
@@ -206,31 +271,38 @@ class AITechniques(object):
 									 		 "Episode reward" : [episode_reward + reward[0]]}
 
 		self.action_state_combo_queue.put(combo_data_pack)
-		return action, next_state, reward, done
-
-	def compute_state_from_action(self, action, state, action_data_pack):
+		return next_state, reward, done, combo_data_pack
+# 
+	def compute_state_from_action(self, t, action, state, action_data_pack):
 		action_data = action_data_pack
-		dt = 1e-3 # Infinitesemal change in time
+		dt = 1e-2 # Infinitesemal change in time
+		# timestep = 0.001*t
 
-		initial_angle = state[0]
-		initial_velocity = state[1]
-
-		torque = action[0]
+		initial_angle = state[0] # deg
+		initial_velocity = state[1] # deg/s
+ 
+		torque = action[0] # Nm
 		action_data["Observed torques"] = [torque]
 		action_data["Wing torques"].extend([torque])
 
-		acceleration = self.physics_engine.acceleration(initial_angle, torque)
-		velocity = self.physics_engine.velocity(initial_velocity, acceleration, dt)
-		angle = self.physics_engine.angle(initial_angle, velocity, dt)
+		rad_acceleration = self.physics_engine.acceleration(initial_angle*np.pi/180., torque) # rad/s^2
+		rad_velocity = self.physics_engine.velocity(initial_velocity*np.pi/180., rad_acceleration, dt) # rad/s
+		rad_angle = self.physics_engine.angle(initial_angle*np.pi/180., rad_velocity, dt) # rad
+
+		deg_velocity = rad_velocity*180/np.pi
+		deg_angle = rad_angle*180/np.pi
+
+		if deg_angle > 360:
+			deg_angle -= 360.
 
 		time_step_name = "Time"
 		time_step = action_data[time_step_name]
 
 		state_1_name = "Wing angles"
-		state_1 = [angle]
+		state_1 = [deg_angle]
 
 		state_2_name = "Angular velocity"
-		state_2 = [velocity]
+		state_2 = [deg_velocity]
 
 		state_3_name = "Real time"
 		state_3 = [time.time()]

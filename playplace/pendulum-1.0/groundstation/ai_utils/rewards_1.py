@@ -3,7 +3,7 @@ import math
 
 class R_omega:
 
-	def polyn_1(omega, omega_target, A=0.001, C=0):
+	def polyn_1(omega, omega_target, A=0.0001, C=0):
 		# Quadratic
 		return -A*((np.abs(omega) - omega_target))**2 + C
 
@@ -11,13 +11,16 @@ class R_omega:
 		# -|ln()|
 		return -omega_target*np.log(np.abs(omega/omega_target)) + C
 
-	def hyperb_1(omega, omega_target, A=100, B=3):
+	def hyperb_1(omega, omega_target, A=0.001, B=0.01):
 		# 1/((x-target)^2) - |x-target|
 		return A/((omega - omega_target)**2) - B*np.abs(omega - omega_target)
 
 	def abs_1(omega, omega_target, A=10):
-		# -|x-target|
+		# -|x-target|as
 		return -A*np.abs(omega - omega_target)
+
+	def gaussian_1(omega, omega_target, A=100, B=0.1):
+		return np.e**(-A*(omega-omega_target)**2) - np.abs(B*omega)
 
 class R_tau:
 
@@ -33,7 +36,7 @@ class R_tau:
 		# 1/(x^2) - |x|
 		return A/(tau**2) - B*np.abs(tau)
 
-	def polyn_1(tau, A=10, C=0):
+	def polyn_1(tau, A=500, C=0):
 		# Quadratic
 		return -A*(tau)**2 + C
 
@@ -41,12 +44,29 @@ class R_tau:
 		# -|x-target|
 		return -A*np.abs(tau)
 
+	def gaussian_1(tau, A=100, B=0.1):
+		return np.e**(-A*(tau)**2) - np.abs(B*tau)
+
+
 
 class R_theta:
 
 	def polyn_1(theta, A=1e-5, C=0):
 		# -A(x/B)^4 + C
 		return -A*(theta)**4 + C
+
+class Combined_Func:
+
+	def gaussian_pure(tau, omega, omega_target, T, W):
+		# Simple 3D Gaussian function
+		return np.e**(-(T*(tau)**2 + W*(omega-omega_target)**2))
+
+	def gaussian_sloped(tau, omega, omega_target, T1, W1, T2, W2):
+		# Simple 3D Gaussian function
+		return np.e**(-(T1*(tau)**2 + W1*(omega-omega_target)**2)) \
+				- T2*np.abs(tau) \
+				- W2*np.abs(omega-omega_target)
+
 
 class RewardUtils:
 
@@ -168,8 +188,8 @@ class Rewards_1(object):
 
 		# Correspondig angular amplitude
 		ang_amplitude = max(np.absolute(prev_ang_pos[-20:]))
-		print("Weighted angular velocity average: ", weighted_ang_vel_avg)
-		print("Corresponding angular amplitude: ", ang_amplitude)
+		# print("Weighted angular velocity average: ", weighted_ang_vel_avg)
+		# print("Corresponding angular amplitude: ", ang_amplitude)
 
 		# Instantaneous - uses current/next state
 		# ang_vel = next_ang_vel[0]
@@ -191,16 +211,21 @@ class Rewards_1(object):
 		if ang_pos == 0:
 			ang_pos = 0.001
 
-		# Episode ends after 100 actions
-		if action_num == 100:
+		# Episode ends after 1000 actions
+		if action_num == 1000:
 			done = True
 		else:
 			done = False
 		# Calculate reward
 		R_ang_vel = R_omega.polyn_1(ang_vel, target_ang_vel)
 		R_torque = R_tau.polyn_1(wng_trq)
-		# R_ang_pos = R_theta.polyn_1(ang_pos)
 		reward = [R_ang_vel + R_torque]
+		# reward = [R_ang_vel]
+
+		# R_ang_pos = R_theta.polyn_1(ang_pos)
+
+		# reward = [Combined_Func.gaussian_pure(wng_trq, ang_vel, target_ang_vel,
+		# 								1e2,1e-3)]
 
 		# Did we hit the failsafe? Do not reward this! LOL
 		if not np.all(prev_wing_trq[-10:]==0):

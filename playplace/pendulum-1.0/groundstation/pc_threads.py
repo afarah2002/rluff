@@ -78,7 +78,7 @@ class Threads:
 
 	def save_data_main(data_classes, test_num, target, combo_queue):
 
-		test_data_main_loc = f"test_data/{test_num}_{target}/"
+		test_data_main_loc = f"test_data_2/{test_num}_{target}/"
 		pathlib.Path(test_data_main_loc).mkdir(parents=True, exist_ok=True)
 		
 

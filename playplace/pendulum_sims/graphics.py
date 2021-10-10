@@ -1,5 +1,7 @@
-import pygame
 import math
+import numpy as np
+import pygame
+
 
 width, height = 800, 400 # w/h of window
 white = (255,255,255)

@@ -7,13 +7,14 @@ class BASIC_KINEM(object):
 		self.mass = mass
 		self.length = length
 		self.damping_factor = damping_factor
+		# output to values that can actually be sent to 
 
 	def acceleration(self, initial_angle, torque):
-		acceleration = -(9.8/self.length) * math.sin(initial_angle*np.pi/180) + torque/(self.mass*self.length**2)
+		acceleration = -(9.8/self.length) * math.sin(initial_angle) + torque/(self.mass*self.length**2)
 		return acceleration
 
 	def velocity(self, initial_velocity, acceleration, dt):
-		velocity = acceleration*dt*180/np.pi + initial_velocity
+		velocity = acceleration*dt + initial_velocity
 		damped_velocity = self.damping_factor*velocity
 		return damped_velocity
 

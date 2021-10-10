@@ -83,7 +83,7 @@ class Threads:
 			combo_data = combo_queue.get()
 			angle = combo_data["next state"]["Wing angles"][0]
 
-			graphics_engine.get_path(angle)
+			graphics_engine.get_path(angle*np.pi/180)
 			graphics_engine.redraw()
 
 
@@ -141,6 +141,7 @@ class Threads:
 				x_file_loc = f"{data_loc}XData.txt"
 				y_file_loc = f"{data_loc}YData.txt"
 				
+				print(f"Saving {new_x}th timestep..., Data length = {len(data_class.YData)}")
 				with open(x_file_loc, "wb") as xp:
 					pickle.dump(data_class.XData, xp)
 				with open(y_file_loc, "wb") as yp:

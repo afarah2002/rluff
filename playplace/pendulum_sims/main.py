@@ -1,5 +1,6 @@
 import queue
 import itertools
+import numpy as np
 import matplotlib.animation as animation
 import multiprocessing
 import threading
@@ -10,17 +11,24 @@ import groundstation.pc_threads as pc_threads
 import groundstation.gui_module.utils as gui_utils
 import groundstation.gui_module.framework as gui_framework
 
-def main():
+def main(target_vel):
 
-	mass = 0.2
+	mass = 0.1
 	length = 0.3
 	damping_factor = 0.99
 
 	physics_engine = physics.BASIC_KINEM(mass, length, damping_factor)
-	test_num = "001"
-	target = 90 # ang vel, deg/s
+	test_num = "032"
+	target = target_vel # ang vel, deg/s
 	GUI = False
+	# pygame_display = True
 
+	print("Test Number: ", test_num)
+	print("Target Ang Vel: ", target, " deg/s")
+	print("Mass: ", mass)
+	print("Length: ", length)
+	print("Damping Factor: ", damping_factor)
+	time.sleep(1.)
 	# Queues
 	action_queue = multiprocessing.Queue()
 	action_state_combo_queue = multiprocessing.Queue()
@@ -51,11 +59,8 @@ def main():
 										   args=(action_queue,))
 	# recv_combos_thread = threading.Thread(target=pc_threads.Threads.recv_combos_main,
 	# 									  args=(pi_client, action_state_combo_queue))
-	pygame_thread = threading.Thread(target=pc_threads.Threads.pygame_main,
-									 args=(physics_engine, action_state_combo_queue))
-	save_data_thread = threading.Thread(target=pc_threads.Threads.save_data_main,
-										args=(data_classes, test_num, target, action_state_combo_queue))
-
+	# pygame_thread = threading.Thread(target=pc_threads.Threads.pygame_main,
+	# 								 args=(physics_engine, action_state_combo_queue))
 	# Init GUI and animation
 	if GUI:
 
@@ -84,14 +89,17 @@ def main():
 	print("Starting")
 	# ai_test_thread.start()
 	ai_main_thread.start()
-	# send_actions_thread.start()
-	pygame_thread.start()
-	save_data_thread.start()
-	# recv_combos_thread.start()
+
+	# if pygame_display:
+	# 	pygame_thread.start()
 
 	# Start GUI
 	if GUI:
 		gui_app.mainloop()
 
 if __name__ == '__main__':
-	main()
+	# for target_vel in np.arange(40.,140.,10.):
+	for target_vel in [90.]:
+		# Run multiple sims simultaneously
+		main_thread = threading.Thread(target=main, args=(target_vel,))
+		main_thread.start()
