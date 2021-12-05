@@ -29,8 +29,8 @@ def build_pc_server(pc_IP):
 
 def main():
 
-	test_num = "001"
-	target = 90 # ang vel, deg/s
+	test_num = "006"
+	target = 40 # ang vel, deg/s
 	GUI = True
 
 	# Comms

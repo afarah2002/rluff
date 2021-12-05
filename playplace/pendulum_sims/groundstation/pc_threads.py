@@ -18,18 +18,20 @@ class Threads:
 				target,
 				action_state_combo_queue, 
 				action_queue, 
+				thread_state_queue,
 				technique,
 				data_classes, 
 				physics_engine):
 
 		# rewards = Rewards(data_classes) # Obj used to calculate rewards
 		rewards = Rewards_1(data_classes) # Obj used to calculate rewards
-		action_dim = 1 # Pend torque
+		action_dim = 2 # Pend torque adj error, base frequency
 		state_dim = 2 # Angle, ang vel
 		AI_infinte_res = AITechniques(test_num,
 									  target,
 									  action_state_combo_queue,
 									  action_queue,
+									  thread_state_queue,
 									  action_dim,
 									  state_dim,
 									  technique,
