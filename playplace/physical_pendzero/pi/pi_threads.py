@@ -65,8 +65,6 @@ class Threads:
 				# 	wing_torque = 0.05*wing_torque/abs(wing_torque) # Set to max
 				# 	action_data["Wing torques"][0] = 0 # Set dT to 0
 
-				action_num = int(action_data["Action num"])
-
 				# --- SPEED FAILSAFE - KEEPS BREAKING THE PENDULUM!!!
 				current_speed = abs(wing_observer.ang_vel()[0])
 				if current_speed == 0:
@@ -98,6 +96,7 @@ class Threads:
 				# --- --- --- --- --- --- --- --- --- --- --- --- --- 
 
 				# Act
+				print(f"Wing torque: {wing_torque}")
 				wing_torque_motor.turn(wing_torque)
 
 				# Measure torque AFTER acting
@@ -124,7 +123,7 @@ class Threads:
 								   "next state" : state_data,
 								   }
 
-				print(combo_data_pack)
+				print(f"Timestep: {time_step}")
 				print("\n")
 
 
