@@ -5,35 +5,29 @@ import pathlib
 import os
 
 from groundstation.ai_utils.pendzero import PendZero
-from groundstation.ai_utils.rewards import Rewards 
-from groundstation.ai_utils.rewards_1 import Rewards_1
 
 class Threads:
 
 	def ai_main(test_num,
 				target,
+				N_timesteps,
 				action_state_combo_queue, 
 				action_queue, 
-				technique,
 				data_classes, 
 				pi_client,
 				pc_server):
 
 		# rewards = Rewards(data_classes) # Obj used to calculate rewards
-		rewards = Rewards_1(data_classes, target) # Obj used to calculate rewards
-		action_dim = 1 # Pend torque
-		state_dim = 2 # Angle, ang vel
-		AI_infinte_res = AITechniques(test_num,
-									  target,
-									  action_state_combo_queue,
-									  action_queue,
-									  action_dim,
-									  state_dim,
-									  technique,
-									  rewards,
-									  data_classes,
-									  pi_client,
-									  pc_server)
+		# action_dim = 1 # Pend torque
+		# state_dim = 2 # Angle, ang vel
+		PendZero(test_num,
+				target,
+				N_timesteps,
+				action_state_combo_queue,
+				action_queue,
+				data_classes,
+				pi_client,
+				pc_server)
 
 	def ai_main_test(action_queue):
 		time_step = 0
@@ -81,6 +75,7 @@ class Threads:
 		test_data_main_loc = f"test_data/{test_num}_{target}/"
 		pathlib.Path(test_data_main_loc).mkdir(parents=True, exist_ok=True)
 		
+		print("saving")
 
 		while True:
 			combo_data = combo_queue.get()
@@ -109,13 +104,16 @@ class Threads:
 				data_loc = f"{test_data_main_loc}{data_dir}/"
 				pathlib.Path(data_loc).mkdir(parents=True, exist_ok=True)
 				
-				x_file_loc = f"{data_loc}XData.txt"
-				y_file_loc = f"{data_loc}YData.txt"
+				x_file_loc = f"{data_loc}XData.npy"
+				y_file_loc = f"{data_loc}YData.npy"
 				
-				with open(x_file_loc, "wb") as xp:
-					pickle.dump(data_class.XData, xp)
-				with open(y_file_loc, "wb") as yp:
-					pickle.dump(data_class.YData, yp)
+				np.save(x_file_loc, data_class.XData)
+				np.save(y_file_loc, data_class.YData)
+
+				# with open(x_file_loc, "wb") as xp:
+				# 	pickle.dump(data_class.XData, xp)
+				# with open(y_file_loc, "wb") as yp:
+				# 	pickle.dump(data_class.YData, yp)
 
 
 

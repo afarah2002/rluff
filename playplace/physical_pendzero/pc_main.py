@@ -29,9 +29,9 @@ def build_pc_server(pc_IP):
 
 def main():
 
-	test_num = "006"
-	target = 40 # ang vel, deg/s
-	GUI = True
+	test_num = "001"
+	target = 90 # ang vel, deg/s
+	GUI = False
 	N_timesteps = 12000
 
 	# Comms
@@ -50,9 +50,7 @@ def main():
 					"Wing angles" : gui_utils.GUIDataClass("next state", "Wing angles", 2),
 					"Angular velocity" : gui_utils.GUIDataClass("next state", "Angular velocity", 2),
 					"Real time" : gui_utils.GUIDataClass("next state", "Real time", 1),
-					"Reward" : gui_utils.GUIDataClass("reward", "Reward", 1),
-					"Episode reward" : gui_utils.GUIDataClass("episode reward", "Episode reward", 1)}
-	
+					"Reward" : gui_utils.GUIDataClass("reward", "Reward", 1)}	
 
 
 	# Threads
@@ -61,9 +59,9 @@ def main():
 	ai_main_thread = threading.Thread(target=pc_threads.Threads.ai_main,
 									  args=(test_num,
 									  		target,
+									  		N_timesteps,
 									  		action_state_combo_queue, 
 									  		action_queue, 
-									  		"infinte res",
 									  		data_classes,
 									  		pi_client,
 									  		pc_server))
@@ -81,8 +79,7 @@ def main():
 						   gui_utils.NewMPLFigure(data_classes["Observed torques"])]
 		gui_state_figs = [gui_utils.NewMPLFigure(data_classes["Wing angles"]),
 						  gui_utils.NewMPLFigure(data_classes["Angular velocity"])]
-		gui_reward_figs = [gui_utils.NewMPLFigure(data_classes["Reward"]),
-						   gui_utils.NewMPLFigure(data_classes["Episode reward"])]
+		gui_reward_figs = [gui_utils.NewMPLFigure(data_classes["Reward"])]
 
 		gui_figs = [gui_action_figs,
 					gui_state_figs,
