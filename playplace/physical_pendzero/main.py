@@ -168,7 +168,7 @@ def main():
 	start_timestep = 2000
 	N_timesteps = int(start_timestep+10000)+1
 
-	n_actors = 50
+	n_actors = 10
 
 	actions_buffer = np.zeros([N_timesteps, 1]) # torque
 	states_buffer = np.zeros([N_timesteps, 2]) # theta theta_dot

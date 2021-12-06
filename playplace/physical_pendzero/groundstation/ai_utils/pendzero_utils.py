@@ -78,9 +78,7 @@ class PendZeroUtils:
 		y_train = tf.constant(y_sample)
 		model.fit(x_train, y_train, epochs=epochs)
 
-	def reward_function(states, actions, real_states_buffer, actions_buffer, t):
-		target_vel = 10*np.pi/180 # rad/s
-
+	def reward_function(target_vel, states, actions, real_states_buffer, actions_buffer, t):
 		if np.size(states) == 2: # single state
 			thetas = states[0]
 			theta_dots = states[1]
@@ -90,7 +88,7 @@ class PendZeroUtils:
 			theta_dots = states[:,1]
 
 		torques = actions
-		history_len = 400
+		history_len = 20
 		if t < history_len:
 			history_len = t
 		else:
@@ -115,8 +113,30 @@ class PendZeroUtils:
 		theta_dots_avg = np.mean(np.abs(updated_theta_dots),axis=0)
 		torques_avg = np.mean(np.abs(updated_torques), axis=0)
 
-		R_torque = -20*np.power(torques_avg,2)
-		R_theta_dot = -0.1*np.power((theta_dots_avg/target_vel - 1.0),2)
+		R_torque = -10*np.power(torques_avg,2)
+		R_theta_dot = -0.5*np.power((theta_dots_avg/target_vel - 1.0),2)
 		rewards = 10*(R_torque + R_theta_dot)
 
 		return rewards
+
+class NN(object):
+
+	def __init__(self, dims=[1,1]):
+		n = 16
+		self.model = tf.keras.Sequential(
+			[
+				tf.keras.layers.Dense(dims[0]),
+				tf.keras.layers.LeakyReLU(alpha=0.3),
+				tf.keras.layers.Dense(n),
+				tf.keras.layers.LeakyReLU(alpha=0.3),
+				tf.keras.layers.Dense(n),
+				tf.keras.layers.LeakyReLU(alpha=0.3),
+				tf.keras.layers.Dense(n),
+				tf.keras.layers.LeakyReLU(alpha=0.3),
+				tf.keras.layers.Dense(n),
+				tf.keras.layers.LeakyReLU(alpha=0.3),
+				tf.keras.layers.Dense(dims[1]),
+			]
+		)
+
+		self.model.compile(optimizer='adam', loss='mse')
