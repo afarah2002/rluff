@@ -3,9 +3,9 @@ import math
 
 class R_omega:
 
-	def polyn_1(omega, omega_target, A=0.0001, C=0):
+	def polyn_1(omega, omega_target, A=0.1, C=0):
 		# Quadratic
-		return -A*((np.abs(omega) - omega_target))**2 + C
+		return -A*((np.abs(omega)/omega_target - 1))**2 + C
 
 	def log_1(omega, omega_target, C=50):
 		# -|ln()|
@@ -36,9 +36,9 @@ class R_tau:
 		# 1/(x^2) - |x|
 		return A/(tau**2) - B*np.abs(tau)
 
-	def polyn_1(tau, A=500, C=0):
+	def polyn_1(tau, A=0.05, C=0):
 		# Quadratic
-		return -A*(tau)**2 + C
+		return -A*(tau/0.05)**2 + C
 
 	def abs_1(tau, A=2e4):
 		# -|x-target|
@@ -51,7 +51,7 @@ class R_tau:
 
 class R_theta:
 
-	def polyn_1(theta, A=1e-5, C=0):
+	def polyn_1(theta, A=1e-6, C=0):
 		# -A(x/B)^4 + C
 		return -A*(theta)**4 + C
 
@@ -70,24 +70,25 @@ class Combined_Func:
 
 class RewardUtils:
 
-	def weighted_average(data_array, alpha=1):
-		# higher alpha means more recent data is weighted heavier
+	def weighted_average(data_array, alpha=0):
+		# Higher alpha means more recent data is weighted heavier
 		num = np.size(data_array,0) # Num of timesteps since start
 		t_weights = np.linspace(0, 1, num) # Evenly spaced steps for w = e^(alpha*t)
 		weights = np.exp(alpha*t_weights) # Exponential weight generation
 		weights /= np.max(weights) # Normalizes weights, doesn't affect value 
-
 		weighted_average = np.sum(data_array*weights)/np.sum(weights) # Weighted avg formula
-
 		return weighted_average
 
 
 class Rewards_1(object):
 
-	def __init__(self, gui_data_classes):
+	def __init__(self, gui_data_classes, target):
 		self.gui_data_classes = gui_data_classes
+		self.target = target
 
 	def reward_1(self, combo_data, target):
+
+		self.target = target
 
 		wing_torque = combo_data["action"]["Wing torques"]
 		action_num = combo_data["action"]["Action num"]
@@ -183,8 +184,8 @@ class Rewards_1(object):
 		target_ang_vel = float(target) # deg/s
 
 		# Weighted average of angular velocity
-		weighted_ang_vel_avg = RewardUtils.weighted_average(np.absolute(prev_ang_vel), alpha=5)
-		weighted_torque = RewardUtils.weighted_average(np.absolute(prev_wing_trq), alpha=5)
+		weighted_ang_vel_avg = RewardUtils.weighted_average(np.absolute(prev_ang_vel), alpha=0)
+		weighted_torque = RewardUtils.weighted_average(np.absolute(prev_wing_trq), alpha=0)
 
 		# Correspondig angular amplitude
 		ang_amplitude = max(np.absolute(prev_ang_pos[-20:]))
@@ -212,13 +213,16 @@ class Rewards_1(object):
 			ang_pos = 0.001
 
 		# Episode ends after 1000 actions
-		if action_num == 1000:
+		if action_num == 200:
 			done = True
 		else:
 			done = False
 		# Calculate reward
 		R_ang_vel = R_omega.polyn_1(ang_vel, target_ang_vel)
 		R_torque = R_tau.polyn_1(wng_trq)
+		R_safety = R_theta.polyn_1(ang_pos)
+
+		# reward = [R_ang_vel + R_torque + R_safety]
 		reward = [R_ang_vel + R_torque]
 		# reward = [R_ang_vel]
 
@@ -232,11 +236,23 @@ class Rewards_1(object):
 			pass
 		else:
 			print("FAILSAFE")
-			# Penalize and end episode
-			reward = [-15 + R_ang_vel]
+			# Penalize 
+			reward = [-0.08 + R_ang_vel]
 			# done = True
 
 
 		return reward, done
-		
 
+	def cdm_reward(self, cdm_states, torque):
+		angles = list(np.array(cdm_states).T[0,:])
+		ang_vels = list(np.array(cdm_states).T[1,:])
+			
+		weighted_ang_vel_avg = RewardUtils.weighted_average(np.absolute(ang_vels), alpha=0)
+		weighted_ang_avg = RewardUtils.weighted_average(np.absolute(angles), alpha=0)
+
+		R_ang_vel = R_omega.polyn_1(weighted_ang_vel_avg, self.target)
+		R_torque = R_tau.polyn_1(torque)
+		R_safety = R_theta.polyn_1(weighted_ang_avg)
+
+		cdm_reward = R_ang_vel + R_torque + R_safety
+		return cdm_reward

@@ -41,7 +41,7 @@ class AITechniques(object):
 		self.parser = argparse.ArgumentParser()
 		self.parser.add_argument("--seed", default=0, type=int)
 		self.parser.add_argument("--policy", default="TD3") # Policy name (TD3, DDPG or OurDDPG)
-		self.parser.add_argument("--start_timesteps", default=25e3, type=int)# Time steps initial random policy is used
+		self.parser.add_argument("--start_timesteps", default=25*200, type=int)# Time steps initial random policy is used
 		self.parser.add_argument("--eval_freq", default=5e3, type=int)       # How often (time steps) we evaluate
 		self.parser.add_argument("--max_timesteps", default=0.5e6, type=int)   # Max time steps to run environment
 		self.parser.add_argument("--expl_noise", default=0.1)                # Std of Gaussian exploration noise
@@ -171,14 +171,35 @@ class AITechniques(object):
 
 			# Perform action
 			action_num += 1
-			next_state, reward, done, combo_data = self.step(action, 
+			sent_action, next_state, reward, done, combo_data = self.step(action, 
 													 		 action_num, 
 													 		 t, 
 															 episode_num, 
 															 state, 
 															 episode_reward)
+
+			print(f"Torque sent: {sent_action} Nm")
+			action = sent_action/0.05 # Convert action back to [-1,1]
+			
+			cdm_states = self.get_subset_states_from_combo(combo_data)
+			# Get cdm reward (applied for entire cdm duration)
+			cdm_reward = self.rewards.cdm_reward(cdm_states, action)
+			# Add cdm data to buffer
+			for i in range(len(cdm_states)-1):
+				cdm_state = cdm_states[i]
+				next_cdm_state = cdm_states[i+1]
+				if i == 0:
+					prev_state = state
+				else:
+					prev_state = cdm_state
+
+				self.replay_buffer.add(prev_state, 
+									   action, 
+									   next_cdm_state, 
+									   cdm_reward,
+									   False)
+
 			# Store data in replay buffer
-			action = action/0.05 # Convert action back to [-1,1]
 			self.replay_buffer.add(state, action, next_state, reward, done)
 
 			state = next_state
@@ -199,7 +220,7 @@ class AITechniques(object):
 				print(f"\n\n Episode {episode_num}:  Target: {self.target} \
 					  	Total Reward: {episode_reward}\n\n")
 
-				state, done = self.reset(), False
+				state, done = next_state, False
 				episode_reward = 0
 				episode_timesteps = 0
 				episode_num += 1
@@ -260,7 +281,7 @@ class AITechniques(object):
 									 		 "Episode reward" : [episode_reward + reward[0]]}
 
 		self.action_state_combo_queue.put(combo_data_pack)
-		return next_state, reward, done, combo_data_pack
+		return action, next_state, reward, done, combo_data_pack
 
 	def convert_NN_action_to_Pi_action(self, action, state):
 		# Converts the values between 0 and 1 from the NN
@@ -302,6 +323,25 @@ class AITechniques(object):
 					next_state.append(state_value)
 
 		return next_state
+
+	def get_subset_states_from_combo(self, combo_data):
+		# Gets the states and action that were observed
+		# while the AI was thinking and sending data
+
+		real_times = combo_data["subsets"]["Real time"]
+		# torques = combo_data["subsets"]["Wing torques"]
+		angles = combo_data["subsets"]["Wing angles"]
+
+		# Calculate ang vel from angles
+		ang_vels = np.diff(angles)/np.diff(real_times)
+		# torques = torques[:-1]
+		angles = angles[:-1]
+
+		subset_states = np.transpose(np.array([angles, ang_vels]))
+		# print(subset_states)
+
+		return subset_states
+
 
 	def get_reward(self, combo_data):
 		# reward = self.rewards.reward_1(combo_data)

@@ -20,7 +20,7 @@ class Threads:
 				pc_server):
 
 		# rewards = Rewards(data_classes) # Obj used to calculate rewards
-		rewards = Rewards_1(data_classes) # Obj used to calculate rewards
+		rewards = Rewards_1(data_classes, target) # Obj used to calculate rewards
 		action_dim = 1 # Pend torque
 		state_dim = 2 # Angle, ang vel
 		AI_infinte_res = AITechniques(test_num,

@@ -15,9 +15,9 @@ class Actor(nn.Module):
 	def __init__(self, state_dim, action_dim, max_action):
 		super(Actor, self).__init__()
 
-		self.l1 = nn.Linear(state_dim, 256)
-		self.l2 = nn.Linear(256, 256)
-		self.l3 = nn.Linear(256, action_dim)
+		self.l1 = nn.Linear(state_dim, 32)
+		self.l2 = nn.Linear(32, 32)
+		self.l3 = nn.Linear(32, action_dim)
 		
 		self.max_action = max_action
 		
@@ -33,14 +33,14 @@ class Critic(nn.Module):
 		super(Critic, self).__init__()
 
 		# Q1 architecture
-		self.l1 = nn.Linear(state_dim + action_dim, 256)
-		self.l2 = nn.Linear(256, 256)
-		self.l3 = nn.Linear(256, 1)
+		self.l1 = nn.Linear(state_dim + action_dim, 32)
+		self.l2 = nn.Linear(32, 32)
+		self.l3 = nn.Linear(32, 1)
 
 		# Q2 architecture
-		self.l4 = nn.Linear(state_dim + action_dim, 256)
-		self.l5 = nn.Linear(256, 256)
-		self.l6 = nn.Linear(256, 1)
+		self.l4 = nn.Linear(state_dim + action_dim, 32)
+		self.l5 = nn.Linear(32, 32)
+		self.l6 = nn.Linear(32, 1)
 
 
 	def forward(self, state, action):
@@ -101,7 +101,7 @@ class TD3(object):
 		return self.actor(state).cpu().data.numpy().flatten()
 
 
-	def train(self, replay_buffer, batch_size=256):
+	def train(self, replay_buffer, batch_size=32):
 		self.total_it += 1
 
 		# Sample replay buffer 
