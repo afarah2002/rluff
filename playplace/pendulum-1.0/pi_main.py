@@ -54,16 +54,22 @@ def main():
 	 - Send combos in combo queue to PC client
 	'''	
 
-	recv_actions_thread = threading.Thread(target=pi_threads.Threads.recv_actions_main,
-										   args=(pc_client, action_queue))
+	# recv_actions_thread = threading.Thread(target=pi_threads.Threads.recv_actions_main,
+	# 									   args=(pc_client, action_queue))
+
+	CDM = pi_threads.ConstantDataMonitor()
+
+	CDM_thread = threading.Thread(target=CDM.constant_monitor_thread_main)
+
 	act_n_obs_thread = threading.Thread(target=pi_threads.Threads.act_n_obs_main,
 										args=(action_queue, action_state_combo_queue,
-											  pc_client, pi_server))
+											  pc_client, pi_server, CDM))
 	send_combos_thread = threading.Thread(target=pi_threads.Threads.send_combos_main,
 										  args=(pi_server, action_state_combo_queue))
 
 	print("Starting")
 	# recv_actions_thread.start()
+	CDM_thread.start()
 	act_n_obs_thread.start()
 	send_combos_thread.start()
 
