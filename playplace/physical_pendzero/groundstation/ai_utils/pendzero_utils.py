@@ -5,6 +5,11 @@ import tensorflow as tf
 import scipy.stats
 import time
 
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+from torch.optim import Adam
+
 class PendZeroUtils:
 
 	def convert_action_to_action_pack(action, t):
@@ -78,7 +83,34 @@ class PendZeroUtils:
 		y_train = tf.constant(y_sample)
 		model.fit(x_train, y_train, epochs=epochs)
 
+	def train_torch(device, model, xdata, ydata, t, learning_rate=0.0001, epochs=25, sample=512):
+		criterion = nn.MSELoss()
+		optm = Adam(model.parameters(), lr=learning_rate)
+		
+		for epoch in range(epochs):
+			epoch_loss = 0
+			correct = 0
+
+			# Random sample from buffers
+			indices = np.random.randint(t,size=sample)
+			x_sample = np.take(xdata, indices, axis=0)
+			y_sample = np.take(ydata, indices, axis=0)
+
+			x_train = torch.FloatTensor(x_sample).to(device)
+			y_train = torch.FloatTensor(y_sample).to(device)
+
+			model.zero_grad()
+			predictions = model(x_train)
+			loss = criterion(predictions, y_train)
+			loss.backward()
+			optm.step()
+
 	def reward_function(target_vel, states, actions, real_states_buffer, actions_buffer, t):
+		target_angle = 40
+
+		target_theta_max = 40
+		target_freq = 4.427
+
 		if np.size(states) == 2: # single state
 			thetas = states[0]
 			theta_dots = states[1]
@@ -88,7 +120,7 @@ class PendZeroUtils:
 			theta_dots = states[:,1]
 
 		torques = actions
-		history_len = 20
+		history_len = 100
 		if t < history_len:
 			history_len = t
 		else:
@@ -113,9 +145,37 @@ class PendZeroUtils:
 		theta_dots_avg = np.mean(np.abs(updated_theta_dots),axis=0)
 		torques_avg = np.mean(np.abs(updated_torques), axis=0)
 
-		R_torque = -10*np.power(torques_avg,2)
-		R_theta_dot = -0.5*np.power((theta_dots_avg/target_vel - 1.0),2)
-		rewards = 10*(R_torque + R_theta_dot)
+		R_torque = -10*np.power(np.abs(torques) - 0.1,2)
+		# R_torque = 0
+		R_theta_dot = -1*np.power((theta_dots_avg/target_vel - 1.0),2)
+		R_phase_space = -0*np.power((np.power(thetas/target_theta_max,2) + np.power(theta_dots/(target_freq*target_theta_max),2) - 1),2)
+
+		rewards = (R_torque + R_theta_dot + R_phase_space)
+		# rewards = 10*(R_theta_dot)
+
+		if np.size(states)==2:
+			print(f"                                                               {R_torque}, {R_theta_dot}, {R_phase_space}")
+
+
+		return rewards
+
+	def phase_space_reward_function(states, actions, t):
+		if np.size(states) == 2: # single state
+			thetas = states[0]
+			theta_dots = states[1]
+			actions = [actions]
+		else: # states from all the actors
+			thetas = states[:,0]
+			theta_dots = states[:,1]
+
+		torques = actions
+
+		target_amp = 30000
+		phase_space_amp = np.power(thetas, 2) + np.power(theta_dots, 2)
+
+		R_torques = -10*np.power(torques,2)
+		R_phase_space = -10*np.power((phase_space_amp/target_amp - 1),2)
+		rewards = R_torques + R_phase_space
 
 		return rewards
 
@@ -140,3 +200,19 @@ class NN(object):
 		)
 
 		self.model.compile(optimizer='adam', loss='mse')
+
+class NN_torch(nn.Module):
+
+	def __init__(self, dims=[1,1], max_output=1):
+		super(NN_torch, self).__init__()
+
+		self.fc1 = nn.Linear(dims[0], 256)
+		self.fc2 = nn.Linear(256, 256)
+		self.fc3 = nn.Linear(256, dims[1])
+
+		self.max_output = max_output
+
+	def forward(self, state):
+		output = F.relu(self.fc1(state))
+		output = F.relu(self.fc2(output))
+		return self.max_output*torch.tanh(self.fc3(output))

@@ -45,7 +45,7 @@ class AITechniques(object):
 		self.parser = argparse.ArgumentParser()
 		self.parser.add_argument("--seed", default=0, type=int)              # Sets Gym, PyTorch and Numpy seeds
 		self.parser.add_argument("--policy", default="TD3") # Policy name (TD3, DDPG or OurDDPG)
-		self.parser.add_argument("--start_timesteps", default=25e3, type=int)# Time steps initial random policy is used
+		self.parser.add_argument("--start_timesteps", default=1000, type=int)# Time steps initial random policy is used
 		self.parser.add_argument("--eval_freq", default=5e3, type=int)       # How often (time steps) we evaluate
 		self.parser.add_argument("--max_timesteps", default=50*10e3, type=int)   # Max time steps to run environment
 		self.parser.add_argument("--expl_noise", default=0.1)                # Std of Gaussian exploration noise
@@ -169,6 +169,7 @@ class AITechniques(object):
 		episode_num = 0
 		action_num = 0
 		action = 0
+		sim_time = 0
 
 		for t in range(int(self.args.max_timesteps)):
 			# if t%10 == 0:
@@ -187,12 +188,13 @@ class AITechniques(object):
 			action_num += 1
 
 			# Perform action
-			next_state, reward_pack, done, combo_data = self.step(action, 
-																action_num, 
-																t, 
-																episode_num, 
-																state, 
-																episode_reward)
+			next_state, reward_pack, done, combo_data, sim_time = self.step(action, 
+																			action_num, 
+																			t, 
+																			sim_time, 
+																			episode_num, 
+																			state, 
+																			episode_reward)
 
 			# Store data in replay buffer
 			action = action/0.1 # Convert action back to [-1,1]
@@ -238,6 +240,7 @@ class AITechniques(object):
 			 action, 
 			 action_num, 
 			 t, 
+			 sim_time,
 			 episode_num, 
 			 state, 
 			 episode_reward):
@@ -253,7 +256,7 @@ class AITechniques(object):
 		# ACTING AND NEXT STATE GENERATION ARE HERE #
 
 		# Read action-state combo from action-state-combo queue (receive from pi)
-		combo_data_pack = self.compute_state_from_action(t, action, state, action_data_pack)
+		combo_data_pack, sim_time = self.compute_state_from_action(t, sim_time, action, state, action_data_pack)
 
 		# Data from combo_data_pack
 		combo_data = combo_data_pack
@@ -284,11 +287,11 @@ class AITechniques(object):
 									 		 "Episode reward" : list(np.add(episode_reward, reward_pack))}
 
 		self.action_state_combo_queue.put(combo_data_pack)
-		return next_state, reward_pack, done, combo_data_pack
+		return next_state, reward_pack, done, combo_data_pack, sim_time
 # 
-	def compute_state_from_action(self, t, action, state, action_data_pack):
+	def compute_state_from_action(self, t, sim_time, action, state, action_data_pack):
 		action_data = action_data_pack
-		dt = 1e-2 # Infinitesemal change in time
+		# dt = 1e-2 # Infinitesemal change in time
 
 		initial_angle = state[0] # deg
 		initial_velocity = state[1] # deg/s
@@ -297,24 +300,16 @@ class AITechniques(object):
 		action_data["Observed torques"] = [torque]
 		action_data["Wing torques"].extend([torque])
 
-		rad_acceleration = self.physics_engine.acceleration(initial_angle*np.pi/180., torque) # rad/s^2
-		rad_velocity = self.physics_engine.velocity(initial_velocity*np.pi/180., rad_acceleration, dt) # rad/s
-		rad_angle = self.physics_engine.angle(initial_angle*np.pi/180., rad_velocity, dt) # rad
-
-		deg_velocity = rad_velocity*180/np.pi
-		deg_angle = rad_angle*180/np.pi
-
-		if deg_angle > 360:
-			deg_angle -= 360.
+		sim_time, state = self.physics_engine.forward(sim_time, state, torque)
 
 		time_step_name = "Time"
 		time_step = action_data[time_step_name]
 
 		state_1_name = "Wing angles"
-		state_1 = [deg_angle]
+		state_1 = [state[0]]
 
 		state_2_name = "Angular velocity"
-		state_2 = [deg_velocity]
+		state_2 = [state[1]]
 
 		state_3_name = "Real time"
 		state_3 = [time.time()]
@@ -327,7 +322,7 @@ class AITechniques(object):
 		combo_data_pack = {"action" : action_data,
 						   "next state" : state_data}
 
-		return combo_data_pack	
+		return combo_data_pack, sim_time	
 
 	def convert_NN_action_to_Pi_action(self, action, state):
 		# Converts the values between 0 and 1 from the NN

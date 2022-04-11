@@ -29,8 +29,8 @@ def build_pc_server(pc_IP):
 
 def main():
 
-	test_num = "001"
-	target = 90 # ang vel, deg/s
+	test_num = "018"
+	target = 100 # ang vel, deg/s
 	GUI = False
 	N_timesteps = 12000
 

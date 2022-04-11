@@ -1,6 +1,21 @@
 import numpy as np
 import math
 
+m = 0.1 # kg
+r = .3
+b = 0.1
+dt = 0.01
+
+def calculate_total_energy(theta, omega):
+	return m*r*(0.5*r*(omega)**2 + 9.8*(1 - np.cos(theta)))
+
+class R_E:
+
+	def polyn_1(theta, omega):
+		# Quadratic
+		return -0.1*(calculate_total_energy(theta, omega) - calculate_total_energy(40*np.pi/180, 0))**2
+
+
 class R_omega:
 
 	def polyn_1(omega, omega_target, A=0.1, C=0):
@@ -190,11 +205,11 @@ class Rewards_1(object):
 		# print("Corresponding angular amplitude: ", ang_amplitude)
 
 		# Instantaneous - uses current/next state
-		# ang_vel = next_ang_vel[0]
+		ang_vel = next_ang_vel[0]
 		wng_trq = wing_torque[0]
 		ang_pos = next_ang_pos[0]
 		# Average
-		ang_vel = weighted_ang_vel_avg
+		# ang_vel = weighted_ang_vel_avg
 		# wng_trq = weighted_torque
 		# ang_pos = avg_ang_pos
 
@@ -217,10 +232,11 @@ class Rewards_1(object):
 		# Calculate reward
 		R_ang_vel = R_omega.polyn_1(ang_vel, target_ang_vel)
 		R_torque = R_tau.polyn_1(wng_trq)
-		R_tot = R_ang_vel + R_torque
+		R_energy = R_E.polyn_1(ang_pos, ang_vel)
+		R_tot = R_energy + R_torque
 		# reward = [R_ang_vel]
 
-		reward_pack = [R_tot, R_torque, R_ang_vel]
+		reward_pack = [R_tot, R_torque, R_energy]
 
 		# R_ang_pos = R_theta.polyn_1(ang_pos)
 

@@ -13,21 +13,26 @@ import groundstation.gui_module.framework as gui_framework
 
 def main(target_vel, test_num):
 
-	mass = 0.1
-	length = 0.3
-	damping_factor = 0.99
+	# mass = 0.1
+	# length = 0.3
+	# damping_factor = 0.99
 
-	physics_engine = physics.BASIC_KINEM(mass, length, damping_factor)
+	m = 0.1 # kg
+	r = .3
+	b = 0.1
+	dt = 0.01
+
+	physics_engine = physics.RK4(m, b, r, dt)
 	test_num = test_num
 	target = target_vel # ang vel, deg/s
-	GUI = 0
+	GUI = True
 	pygame_display = 0
 
 	print("Test Number: ", test_num)
 	print("Target Ang Vel: ", target, " deg/s")
-	print("Mass: ", mass)
-	print("Length: ", length)
-	print("Damping Factor: ", damping_factor)
+	print("Mass: ", m)
+	print("Length: ", r)
+	print("Damping Factor: ", b)
 	# time.sleep(1.)
 	# Queues
 	action_queue = Queue()
@@ -48,21 +53,21 @@ def main(target_vel, test_num):
 	# Threads
 	# ai_test_thread = threading.Thread(target=pc_threads.Threads.ai_main_test,
 	# 							 	  args=(action_queue,))
-	# ai_main_thread = threading.Thread(target=pc_threads.Threads.ai_main,
-	# 								  args=(test_num,
-	# 								  		target,
-	# 								  		action_state_combo_queue, 
-	# 								  		action_queue,
-	# 								  		thread_state_queue, 
-	# 								  		"infinte res",
-	# 								  		data_classes,
-	# 								  		physics_engine))
+	ai_main_thread = threading.Thread(target=pc_threads.Threads.ai_main,
+									  args=(test_num,
+									  		target,
+									  		action_state_combo_queue, 
+									  		action_queue,
+									  		thread_state_queue, 
+									  		"infinte res",
+									  		data_classes,
+									  		physics_engine))
 	# send_actions_thread = threading.Thread(target=pc_threads.Threads.send_actions_main,
 	# 									   args=(action_queue,))
 	# recv_combos_thread = threading.Thread(target=pc_threads.Threads.recv_combos_main,
 	# 									  args=(pi_client, action_state_combo_queue))
-	# pygame_thread = threading.Thread(target=pc_threads.Threads.pygame_main,
-	# 								 args=(physics_engine, action_state_combo_queue))
+	pygame_thread = threading.Thread(target=pc_threads.Threads.pygame_main,
+									 args=(physics_engine, action_state_combo_queue))
 	# Init GUI and animation
 	if GUI:
 
@@ -91,16 +96,16 @@ def main(target_vel, test_num):
 	print("Starting")
 	# ai_test_thread.start()
 	# ai_main_thread.start()
-	pc_threads.Threads.ai_main(test_num,
-					  		   target,
-					  		   action_state_combo_queue, 
-					  		   action_queue,
-					  		   thread_state_queue, 
-					  		   "infinite res",
-					  		   data_classes,
-					  		   physics_engine)
+	# ai_main_thread = threading.Thread(target=pc_threads.Threads.ai_main(test_num,
+	# 								  		   target,
+	# 								  		   action_state_combo_queue, 
+	# 								  		   action_queue,
+	# 								  		   thread_state_queue, 
+	# 								  		   "infinite res",
+	# 								  		   data_classes,
+	# 								  		   physics_engine)
 
-
+	ai_main_thread.start()
 
 	if pygame_display:
 		pygame_thread.start()

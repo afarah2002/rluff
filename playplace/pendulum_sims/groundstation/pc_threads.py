@@ -64,8 +64,8 @@ class Threads:
 	def pygame_main(physics_engine, action_state_combo_queue):
 		combo_queue = action_state_combo_queue
 		# -- PYGAME PARAMS -- #
-		mass = physics_engine.mass
-		length = physics_engine.length
+		mass = physics_engine.m
+		length = physics_engine.r
 
 		width, height = 800, 400 # w/h of window
 		Out = False

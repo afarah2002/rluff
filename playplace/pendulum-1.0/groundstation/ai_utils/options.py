@@ -63,7 +63,7 @@ class AITechniques(object):
 
 		self.action_dim = action_dim
 		self.state_dim = state_dim
-		self.max_action = 1.
+		self.max_action = 0.1
 
 		techniques = {"infinite res" : self.infinite_res()}
 
@@ -161,7 +161,7 @@ class AITechniques(object):
 			# Select action randomly or according to policy
 			if t < self.args.start_timesteps:
 				# Action must be within allowable ranges
-				action = np.array([random.uniform(-1., 1.) for i in range(self.action_dim)])
+				action = np.array([random.uniform(-self.max_action, self.max_action) for i in range(self.action_dim)])
 			else:
 				# print("NOT RANDOM")
 				action = (
@@ -179,7 +179,7 @@ class AITechniques(object):
 															 episode_reward)
 
 			print(f"Torque sent: {sent_action} Nm")
-			action = sent_action/0.05 # Convert action back to [-1,1]
+			action = sent_action # Convert action back to [-1,1]
 			
 			cdm_states = self.get_subset_states_from_combo(combo_data)
 			# Get cdm reward (applied for entire cdm duration)
@@ -288,7 +288,7 @@ class AITechniques(object):
 		# output to values that can actually be sent to 
 		# the Pi hardware/motors
 		action_copy = np.array(action).copy()
-		action[0] = 0.05*action_copy[0]
+		action[0] = action_copy[0]
 		# action[0] = 0.01*action_copy[0] # For dT instead of T
 		# action[0] = 0.25
 		return action
