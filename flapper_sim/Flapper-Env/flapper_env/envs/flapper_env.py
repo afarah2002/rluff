@@ -5,35 +5,37 @@ import pybullet as p
 import time
 
 from flapper_env.resources.bird import Bird
-
+client = p.connect(p.GUI)
 class FlapperEnv(gym.Env):
 	metadata = {'render.modes':['human']}
 
-	def __init__(self):
+	def __init__(self, GUI=False):
 		self.action_space = gym.spaces.Box(
-			low=np.array([-1.3, -200]), # [stroke plane angle, wing torque]
-			high=np.array([1.3, 200]))
+			low=np.array([-1.3, -0.7854, -0.7854]), # [stroke plane angle, wing angle]
+			high=np.array([1.3, 0.7854, 0.7854]))
 		self.observation_space = gym.spaces.Box(
-			low=np.array([-100, -100, 0, -100, -100, -100, -100, -100, -100]), # [base pos (xyz), base vel (xyz) ]  
-			high=np.array([100, 100, 100, 100, 100, 100, 100, 100, 100]))
+			low=np.array([-100, -100, -100, -100, -100, -100, -100, -100, -100, -100, -100, -100, -100, -100]), # [base pos (xyz), base vel (xyz) ]  
+			high=np.array([100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100]))
 		self.np_random, _ = gym.utils.seeding.np_random()
-		# self.client = p.connect(p.DIRECT)
-		self.client = p.connect(p.GUI)
-		p.setTimeStep(1/1000, self.client)
+		self.client = client
+		p.setTimeStep(1/100, self.client)
 
 		self.bird = None
 		self.done = False
 		self.rendered_img = None
 		self.reset()
 
-	def step(self, action, c):
-		self.bird.apply_action(action, c)
+	def step(self, action):
+		self.bird.apply_action(action)
 		p.stepSimulation()
-		# time.sleep(.5)	
-		bird_ob, lim_broken_bool = self.bird.get_observation() # pos, vel, ang vel of base
-		reward = 0
+		# time.sleep(.5)
+		bird_ob, kill_bool = self.bird.get_observation()
+		# self.bird.log_data(data_classes, t)
+		reward = self.bird.reward()
+		print(f"                                     Reward: {reward}")
 
-		if lim_broken_bool:
+		self.done = False
+		if kill_bool:
 			self.done = True
 
 		return bird_ob, reward, self.done, dict()
@@ -45,7 +47,8 @@ class FlapperEnv(gym.Env):
 		# Reload bird
 		self.bird = Bird(self.client)
 		self.done = False
-		bird_ob = self.bird.get_observation()
+		bird_ob, kill_bool = self.bird.get_observation()
+		print(bird_ob)
 
 		return np.array(bird_ob)
 

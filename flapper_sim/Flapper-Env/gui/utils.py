@@ -2,6 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import matplotlib.animation as animation
+from mpl_toolkits.mplot3d import Axes3D
 import matplotlib.figure as mplfig
 from tkinter import ttk
 import tkinter as tk
@@ -37,6 +38,23 @@ class NewMPLFigure(object):
 		self.lines = [self.axs.plot([],[],lw=2)[0] for i in range(data_class.num_lines)]
 		self.axs.set_title(self.fig_name)
 		self.axs.set_xlabel("Timestep")
+
+class NewMPL3DFigure(object):
+
+	'''
+	Used for displaying 3D vectors real time
+	'''
+	def __init__(self, data_class):
+		self.data_class = data_class
+		self.tab_name = data_class.tab_name
+		self.fig_name = data_class.data_class_name
+		self.figure = mplfig.Figure(figsize=(6,4), dpi=200)
+		self.axs = self.figure.add_subplot(111, projection='3d')
+		self.axs.grid()
+		self.axs.set_title(self.fig_name)
+		self.axs.set_xlabel("Local x")
+		self.axs.set_ylabel("Local y")
+		self.axs.set_zlabel("Local z")
 
 class NewTkFigure(tk.Frame):
 
@@ -86,9 +104,9 @@ class MPLAnimation:
 		# 			YData_copy = np.delete(YData_copy,index)
 		# 	XData_copy = np.array(XData_unique)
 
-		if np.size(XData_copy,0) >= 50 and fig_name != "Episode reward":
-			XData_copy = np.delete(XData_copy,np.s_[0:-50],0)
-			YData_copy = np.delete(YData_copy,np.s_[0:-50],0)
+		if np.size(XData_copy,0) >= 100:
+			XData_copy = np.delete(XData_copy,np.s_[0:-100],0)
+			YData_copy = np.delete(YData_copy,np.s_[0:-100],0)
 			
 		# print(data_class.XData)
 		YData_transposed = YData_copy.copy().T
@@ -105,6 +123,19 @@ class MPLAnimation:
 			min_y = np.min(YData_copy)
 
 		plot.set_ylim([min_y, max_y])
+		# plot.set_ylim([-1, 1])
 		plot.set_xlim([XData_copy[0], XData_copy[-1]])
 
 		fig.figure.canvas.draw_idle()
+
+class MPL3DAnimation:
+	'''
+	Animates vectors observed at each node on the wing
+		- Wing velocity
+		- Local flow
+		- Lift
+		- Drag
+	'''
+	def animate(i, fig):
+		# Draw wing nodes
+		pass

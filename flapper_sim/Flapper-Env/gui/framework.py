@@ -6,7 +6,7 @@ import matplotlib.figure as mplfig
 from tkinter import ttk
 import tkinter as tk
 
-import groundstation.gui_module.utils as gui_utils
+import gui.utils as gui_utils
 
 class GUI(tk.Tk):
 
@@ -17,15 +17,15 @@ class GUI(tk.Tk):
 		container.pack(side='top', fill='both', expand=True)
 
 		tab_parent = ttk.Notebook(self)
-		action_tab = ttk.Frame(tab_parent)
-		next_state_tab = ttk.Frame(tab_parent)
-		reward_tab = ttk.Frame(tab_parent)
-		ep_reward_tab = ttk.Frame(tab_parent)
+		tab1 = ttk.Frame(tab_parent)
+		tab2 = ttk.Frame(tab_parent)
+		tab3 = ttk.Frame(tab_parent)
+		tab4 = ttk.Frame(tab_parent)
 		
-		tabs = {"action" : action_tab,
-				"next state" : next_state_tab,
-				"reward" : reward_tab,
-				"episode reward" : ep_reward_tab
+		tabs = {"tab1" : tab1,
+				"tab2" : tab2,
+				"tab3" : tab3,
+				"tab4" : tab4
 				}
 
 
