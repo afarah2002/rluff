@@ -104,7 +104,7 @@ class MPLAnimation:
 		# 			YData_copy = np.delete(YData_copy,index)
 		# 	XData_copy = np.array(XData_unique)
 
-		if np.size(XData_copy,0) >= 100:
+		if np.size(XData_copy,0) >= 100 and fig_name != "Episode reward":
 			XData_copy = np.delete(XData_copy,np.s_[0:-100],0)
 			YData_copy = np.delete(YData_copy,np.s_[0:-100],0)
 			

@@ -1,0 +1,221 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- This URDF was automatically created by SolidWorks to URDF Exporter! Originally created by Stephen Brawner (brawner@gmail.com) 
+     Commit Version: 1.6.0-4-g7f85cfe  Build Version: 1.6.7995.38578
+     For more information, please see http://wiki.ros.org/sw_urdf_exporter -->
+<robot
+  name="spm-asm-v6.SLDASM">
+  <link
+    name="body">
+    <inertial>
+      <origin
+        xyz="-0.000421383538303415 0.332184070499596 -2.49856603214365E-05"
+        rpy="0 0 0" />
+      <mass
+        value="1.26922827121308" />
+      <inertia
+        ixx="0.00712869589949337"
+        ixy="2.05467603967552E-06"
+        ixz="-1.26110535516475E-05"
+        iyy="0.00356362051856473"
+        iyz="-3.33176185448526E-07"
+        izz="0.00385683095591035" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://spm-asm-v6.SLDASM/meshes/body.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.752941176470588 0.752941176470588 0.752941176470588 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://spm-asm-v6.SLDASM/meshes/body.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <link
+    name="egg">
+    <inertial>
+      <origin
+        xyz="-0.000856870052106162 0.000347063522881013 -0.000438979878990969"
+        rpy="0 0 0" />
+      <mass
+        value="0.359454466100374" />
+      <inertia
+        ixx="0.00046744587050428"
+        ixy="3.35509051901726E-12"
+        ixz="0.000120581531090257"
+        iyy="0.000628654329683654"
+        iyz="5.04013399503035E-12"
+        izz="0.000288982854446198" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://spm-asm-v6.SLDASM/meshes/egg.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.752941176470588 0.752941176470588 0.752941176470588 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://spm-asm-v6.SLDASM/meshes/egg.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="egg"
+    type="continuous">
+    <origin
+      xyz="0 0.33 0"
+      rpy="-0.0042072 0.47719 -1.5727" />
+    <parent
+      link="body" />
+    <child
+      link="egg" />
+    <axis
+      xyz="0 1 0" />
+    <limit
+      lower="-1.309"
+      upper="1.309"
+      effort="0.02"
+      velocity="3.927" />
+  </joint>
+  <link
+    name="left">
+    <inertial>
+      <origin
+        xyz="0.135498595849044 0.000882305601416833 -0.0136485490400978"
+        rpy="0 0 0" />
+      <mass
+        value="0.313897455052643" />
+      <inertia
+        ixx="0.000166677112614188"
+        ixy="-3.63327768091806E-06"
+        ixz="5.65922173970379E-05"
+        iyy="0.000580132833015466"
+        iyz="3.66054462476453E-07"
+        izz="0.00072268241644618" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://spm-asm-v6.SLDASM/meshes/left.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.752941176470588 0.752941176470588 0.752941176470588 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://spm-asm-v6.SLDASM/meshes/left.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="left"
+    type="continuous">
+    <origin
+      xyz="0 0 0"
+      rpy="-0.47575 -0.094629 1.6194" />
+    <parent
+      link="egg" />
+    <child
+      link="left" />
+    <axis
+      xyz="0 1 0" />
+    <limit
+      lower="-0.7854"
+      upper="0.7854"
+      effort="0.2"
+      velocity="1" />
+  </joint>
+  <link
+    name="right">
+    <inertial>
+      <origin
+        xyz="0.134693560193067 -0.00249189131958033 -0.00671898153915416"
+        rpy="0 0 0" />
+      <mass
+        value="0.306854747869197" />
+      <inertia
+        ixx="0.00016141276651425"
+        ixy="1.13945933887369E-06"
+        ixz="2.80513037956452E-05"
+        iyy="0.000576085577233412"
+        iyz="-5.68566029740095E-08"
+        izz="0.00072219324390974" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://spm-asm-v6.SLDASM/meshes/right.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.752941176470588 0.752941176470588 0.752941176470588 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://spm-asm-v6.SLDASM/meshes/right.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="right"
+    type="continuous">
+    <origin
+      xyz="0 -0.00049999 0"
+      rpy="0.47396 -0.044987 -1.5939" />
+    <parent
+      link="egg" />
+    <child
+      link="right" />
+    <axis
+      xyz="0 1 0" />
+    <limit
+      lower="-0.7854"
+      upper="0.7854"
+      effort="0.2"
+      velocity="1" />
+  </joint>
+</robot>

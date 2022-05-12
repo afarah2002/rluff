@@ -8,24 +8,24 @@ import vg
 
 
 class Bird:
-	def __init__(self, client):
+	def __init__(self, client, traj_reset):
 		self.client = client
 		f_name = os.path.join(os.path.dirname(__file__),
 							  'spm-asm-v6-2.SLDASM/urdf/spm-asm-v6-2.SLDASM.urdf')
 		p.setAdditionalSearchPath(pybullet_data.getDataPath())
-		planeID = p.loadURDF("plane.urdf")
+		# planeID = p.loadURDF("plane.urdf")
 		self.bird = p.loadURDF(fileName=f_name,
 							   basePosition=[0,0,1],
 							   physicsClientId=client)
-
+		self.action = np.zeros(3)
 		self.stroke_plane_joint = [0]
 		self.wing_joints = [1,2] # left, right
-
 		self.joint_pos_lims = ([-1.3, 1.3],[-0.7854, 0.7854],[-0.7854, 0.7854]) # rad
 
 		# Enable joint torque sensors
 		for j in [0,1,2]:
 			p.enableJointForceTorqueSensor(self.bird, j, 1, self.client)
+
 
 		# p.resetBaseVelocity(self.bird, np.array([0,-.1,0]), np.array([0,0,0]), self.client)
 		
@@ -35,12 +35,35 @@ class Bird:
 
 		self.ClCd_model_made = False
 		self.ClCd_model_vect = np.vectorize(self.ClCd_model)
+		# if we are pretraining, initialize in random a state/action pair
+		# from the saved expert (prescribed) trajectory
+		if traj_reset:
+			# get expert data
+			loaded_expert = np.load("/home/nasa01/Documents/UML/willis/rluff/flapper_sim/Flapper-Env/expert_data.npz")
+			expert_observations = loaded_expert['expert_observations']
+			expert_actions = loaded_expert['expert_actions']
+			t = 600 + np.random.randint(-20,20) # at this point, it has converged
+			# uses full observation
+			init_base_pos = np.array([0,0,1]) # doesnt really matter where we start
+			init_base_ori = expert_observations[t][3:7]
+			init_base_vel = expert_observations[t][7:10]
+			init_base_ang_vel = expert_observations[t][10:13]
+			init_action = expert_observations[t][-3:]
+			p.resetBasePositionAndOrientation(self.bird,
+											  init_base_pos,
+											  init_base_ori,
+											  self.client)
+			p.resetBaseVelocity(self.bird, 
+								init_base_vel,
+								init_base_ang_vel,
+								self.client)
+
+			self.apply_action(init_action)
 
 	def get_ids(self):
 		return self.client, self.bird
 
 	def apply_action(self, action):
-		# p.resetBaseVelocity(self.bird, np.array([0,-.01,0]), np.array([0,0,0]), self.client)
 
 		'''
 		Total action pack consists of 
@@ -48,6 +71,7 @@ class Bird:
 			- Left wing motor angular position
 			- Right wing motor angular position
 		'''
+		self.action = action
 		stroke_plane_angle, left_wing_pos, right_wing_pos = action
 
 		# Set stroke plane angle (position control)
@@ -56,10 +80,9 @@ class Bird:
 									targetPositions=[stroke_plane_angle],
 									physicsClientId=self.client)
 
-
-
 		# Using wing position for direct control, infer torques based on resulting kinematics
 		wing_positions = [left_wing_pos, right_wing_pos]
+		same_wing_positions = [left_wing_pos, left_wing_pos]
 		p.setJointMotorControlArray(self.bird, self.wing_joints,
 									controlMode=p.POSITION_CONTROL,
 									targetPositions=wing_positions,
@@ -98,13 +121,38 @@ class Bird:
 		joint_state_pack = self.get_joint_dynamics()
 		IMU_state_pack = self.get_imu_dynamics()
 		observation = np.concatenate((IMU_state_pack, joint_state_pack))
+		pos, ori = p.getBasePositionAndOrientation(self.bird, self.client)
+		pos, ori = np.array(pos), np.array(ori)
 		# print(observation)
 
 
 		# Should we kill it? (are the lims broken)
 		kill_bool = self.kill()
 		# print(kill_bool)
-		return observation, kill_bool
+		return observation, pos, ori, kill_bool
+
+	def get_full_observation(self):
+		'''
+		Returns as much info as is available
+			- Global position, velocity, angular velocity, orientation of base (3+3+3+4=13)
+			- joint positions, velocities, torques (8)
+			- Previous action (3)
+		'''
+		
+		joint_state_pack = self.get_joint_dynamics() 
+		base_vel, base_ang_vel = p.getBaseVelocity(self.bird, self.client)
+		base_pos, base_ori = p.getBasePositionAndOrientation(self.bird, self.client)
+		global_state_pack = np.concatenate((np.array(base_pos),
+											np.array(base_ori),
+											np.array(base_vel),
+											np.array(base_ang_vel)))
+
+		kill_bool = self.kill()
+
+		observation = np.concatenate((global_state_pack, joint_state_pack, self.action)) # (13+8+3=24)
+
+		return observation, base_pos, base_ori, kill_bool
+
 
 	def get_imu_dynamics(self):
 		IMU_link_num = 3
@@ -367,7 +415,6 @@ class Bird:
 		global_forward_vec = np.dot(rot_mat_base, local_forward_vec)
 		# dot global forward vector with global forward velocity
 		forward_dot = np.dot(v_base,global_forward_vec)
-
 		# Torque rewards
 		_, _, spm_joint_trq = self.get_joint_pos_vel_trq(0)
 		_, _, left_joint_trq = self.get_joint_pos_vel_trq(1)
@@ -379,7 +426,7 @@ class Bird:
 		global_height = np.array(p.getBasePositionAndOrientation(self.bird, self.client)[0])[2]
 		height_penalty = (global_height - target_height)**2
 
-		total_reward = forward_dot - torque_penalty - height_penalty 
+		total_reward = forward_dot
 		self.datalog["Reward"] = np.array([total_reward])
 
 		return total_reward
@@ -391,6 +438,7 @@ class Bird:
 			If the height limits are broken
 		'''
 
+		# height_lim_bool = self.is_height_limit_broken()
 		height_lim_bool = self.is_height_limit_broken()
 		lim_broken_bool_left = self.is_joint_limit_broken(1)
 		lim_broken_bool_right = self.is_joint_limit_broken(2)
