@@ -36,7 +36,7 @@ class FlapperEnv(gym.Env):
 		self.client = client
 		p.setTimeStep(1/100, self.client)
 
-		self.traj_reset = True
+		self.traj_reset = False
 		self.bird = None
 		self.goal = None
 		self.done = False

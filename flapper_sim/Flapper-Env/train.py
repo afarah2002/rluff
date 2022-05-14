@@ -81,16 +81,16 @@ class Threads:
 		# action_noise = NormalActionNoise(mean=np.zeros(n_actions), sigma=0.1 * np.ones(n_actions))
 
 
-		# # model = SAC("MlpPolicy", env, action_noise=action_noise, verbose=1)
-		# model = SAC.load("sac_student")
+		# model = SAC("MlpPolicy", env, action_noise=action_noise, verbose=1)
+		# # model = SAC.load("sac_student") # use pretrained model
 		# model.set_env(env)
 		# print("Training...")
-		# model.learn(total_timesteps=1e5)
-		# model.save("SAC_flapper")
+		# model.learn(total_timesteps=5e4)
+		# model.save("SAC_flapper_3")
 
 		# del model # remove to demonstrate saving and loading
 
-		model = SAC.load("SAC_flapper")
+		model = SAC.load("SAC_flapper_3")
 
 		env2 = gym.make('Flapper-v0')
 		obs = env2.reset()

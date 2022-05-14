@@ -96,6 +96,29 @@ class Bird:
 			self.apply_external_force(1,pos_1[n,:], dT_1[n,:])
 			self.apply_external_force(2,pos_2[n,:], dT_2[n,:])
 
+		# Set transverse pos/velocity (x vel) to 0 to make it a 2d problem
+		# after it acts
+		base_vel, base_ang_vel = p.getBaseVelocity(self.bird, self.client)
+		base_pos, base_ori = p.getBasePositionAndOrientation(self.bird, self.client)
+
+		pos_2d = np.array(base_pos)
+		vel_2d = np.array(base_vel)
+		ang_vel_2d = np.array(base_ang_vel)
+
+		pos_2d[0] = 0 # set x dyn to 0
+		vel_2d[0] = 0 # set x dyn to 0
+		ang_vel_2d[1:] = 0 # set y,z dyn to 0 ()
+
+		p.resetBasePositionAndOrientation(self.bird,
+										  pos_2d,
+										  base_ori,
+										  self.client)
+		p.resetBaseVelocity(self.bird, 
+							vel_2d,
+							ang_vel_2d,
+							self.client)
+
+
 	def get_observation(self):
 		'''
 		The sim and the phys should only the IMU's readings
