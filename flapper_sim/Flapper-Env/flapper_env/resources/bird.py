@@ -8,8 +8,10 @@ import vg
 
 
 class Bird:
-	def __init__(self, client, traj_reset):
+	def __init__(self, client, params):
 		self.client = client
+		self.params = params
+		
 		f_name = os.path.join(os.path.dirname(__file__),
 							  'spm-asm-v6-2.SLDASM/urdf/spm-asm-v6-2.SLDASM.urdf')
 		p.setAdditionalSearchPath(pybullet_data.getDataPath())
@@ -37,7 +39,7 @@ class Bird:
 		self.ClCd_model_vect = np.vectorize(self.ClCd_model)
 		# if we are pretraining, initialize in random a state/action pair
 		# from the saved expert (prescribed) trajectory
-		if traj_reset:
+		if self.params["env"]["traj reset"]:
 			# get expert data
 			loaded_expert = np.load("/home/nasa01/Documents/UML/willis/rluff/flapper_sim/Flapper-Env/expert_data.npz")
 			expert_observations = loaded_expert['expert_observations']
@@ -83,10 +85,19 @@ class Bird:
 		# Using wing position for direct control, infer torques based on resulting kinematics
 		wing_positions = [left_wing_pos, right_wing_pos]
 		same_wing_positions = [left_wing_pos, left_wing_pos]
-		p.setJointMotorControlArray(self.bird, self.wing_joints,
-									controlMode=p.POSITION_CONTROL,
-									targetPositions=wing_positions,
-									physicsClientId=self.client)		
+		max_wing_ang_vel = self.params["bird"]["max wing ang vel"] # rad/s 
+
+		p.setJointMotorControl2(self.bird, 1,
+								controlMode=p.POSITION_CONTROL,
+								targetPosition=left_wing_pos,
+								physicsClientId=self.client,
+								maxVelocity=max_wing_ang_vel)		
+
+		p.setJointMotorControl2(self.bird, 2,
+								controlMode=p.POSITION_CONTROL,
+								targetPosition=right_wing_pos,
+								physicsClientId=self.client,
+								maxVelocity=max_wing_ang_vel)		
 
 		# Aero forces generated from link motion
 		pos_1, dT_1, num_nodes = self.BEMT2(1)
@@ -96,27 +107,32 @@ class Bird:
 			self.apply_external_force(1,pos_1[n,:], dT_1[n,:])
 			self.apply_external_force(2,pos_2[n,:], dT_2[n,:])
 
-		# Set transverse pos/velocity (x vel) to 0 to make it a 2d problem
-		# after it acts
-		base_vel, base_ang_vel = p.getBaseVelocity(self.bird, self.client)
-		base_pos, base_ori = p.getBasePositionAndOrientation(self.bird, self.client)
 
-		pos_2d = np.array(base_pos)
-		vel_2d = np.array(base_vel)
-		ang_vel_2d = np.array(base_ang_vel)
+		p.stepSimulation()
 
-		pos_2d[0] = 0 # set x dyn to 0
-		vel_2d[0] = 0 # set x dyn to 0
-		ang_vel_2d[1:] = 0 # set y,z dyn to 0 ()
+		if self.params["env"]["2D"]:
+			# Set transverse pos/velocity (x vel) to 0 to make it a 2d problem
+			# after it acts
 
-		p.resetBasePositionAndOrientation(self.bird,
-										  pos_2d,
-										  base_ori,
-										  self.client)
-		p.resetBaseVelocity(self.bird, 
-							vel_2d,
-							ang_vel_2d,
-							self.client)
+			base_vel, base_ang_vel = p.getBaseVelocity(self.bird, self.client)
+			base_pos, base_ori = p.getBasePositionAndOrientation(self.bird, self.client)
+
+			pos_2d = np.array(base_pos)
+			vel_2d = np.array(base_vel)
+			ang_vel_2d = np.array(base_ang_vel)
+
+			pos_2d[0] = 0 # set x dyn to 0
+			vel_2d[0] = 0 # set x dyn to 0
+			ang_vel_2d[1:] = 0 # set y,z dyn to 0 
+
+			p.resetBasePositionAndOrientation(self.bird,
+											  pos_2d,
+											  base_ori,
+											  self.client)
+			p.resetBaseVelocity(self.bird, 
+								vel_2d,
+								ang_vel_2d,
+								self.client)
 
 
 	def get_observation(self):
@@ -431,6 +447,7 @@ class Bird:
 		'''
 
 		# Velocity rewards
+		reward_coefs = list(self.params["bird"]["rewards"].values())
 		v_base = p.getBaseVelocity(self.bird, self.client)[0] # velocity of base in global coords
 		pos_base, ori_base = p.getBasePositionAndOrientation(self.bird, self.client)
 		rot_mat_base = np.array(p.getMatrixFromQuaternion(ori_base)).reshape((3,3))
@@ -449,7 +466,15 @@ class Bird:
 		global_height = np.array(p.getBasePositionAndOrientation(self.bird, self.client)[0])[2]
 		height_penalty = (global_height - target_height)**2
 
-		total_reward = forward_dot
+		# Instability penalty - taken from instability bool above
+		IMU_state = p.getLinkState(self.bird, 3,
+									computeLinkVelocity=True, 
+									computeForwardKinematics=True,
+									physicsClientId=self.client)
+		IMU_ang_vel_GLOBAL = np.array(IMU_state[7]) # worldLinkAngularVelocity, 3vec [x,y,z]
+		instability_penalty = np.linalg.norm(IMU_ang_vel_GLOBAL)**2
+
+		total_reward = np.dot(reward_coefs, [forward_dot, torque_penalty, height_penalty, instability_penalty])
 		self.datalog["Reward"] = np.array([total_reward])
 
 		return total_reward

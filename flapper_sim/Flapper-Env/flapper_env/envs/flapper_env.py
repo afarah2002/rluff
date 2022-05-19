@@ -6,73 +6,69 @@ import time
 
 from flapper_env.resources.bird import Bird
 from flapper_env.resources.goal import Goal
-client = p.connect(p.GUI)
-# client = p.connect(p.DIRECT)
+
 class FlapperEnv(gym.Env):
 	metadata = {'render.modes':['human']}
 
-	def __init__(self):
-
+	def __init__(self, params):
+		self.params = params
+		#----------------------------------#
+		# Continuous space boxes
 		self.action_space = gym.spaces.Box(
 			low=np.array([-1.3, -0.7854, -0.7854]), # [stroke plane angle, wing angle]
 			high=np.array([1.3, 0.7854, 0.7854]))
 
 		# How much data should we include?
-		self.full_observation = True # Use full observation?
-		if self.full_observation:
+		if self.params["env"]["full obs"]:
 			# use self.bird.get_full_observation()
 			self.observation_shape = 24
 		else:
 			# use regular self.bird.get_observation()
 			self.observation_shape = 14
-
 		self.observation_space = gym.spaces.Box(
 			low=-1000*np.ones(self.observation_shape),
 			high=1000*np.ones(self.observation_shape))
-
 		self.np_random, _ = gym.utils.seeding.np_random()
-		
-		# self.client = p.connect(p.DIRECT)
-		self.client = client
+		#----------------------------------#
+
+		# Which physics client to use?
+		if self.params["env"]["gui"]:
+			self.client = p.connect(p.GUI)
+		else:
+			self.client = p.connect(p.DIRECT)
+
 		p.setTimeStep(1/100, self.client)
 
-		self.traj_reset = False
+		self.action_interval = 1 # every _th timestep, it acts
+		self.n_step = 0
 		self.bird = None
-		self.goal = None
 		self.done = False
-		self.prev_dist_to_goal = None
 		self.rendered_img = None
 		self.render_rot_matrix = None
-		self.max_ep_steps = 1000
+		self.max_ep_steps = self.params["env"]["max ep steps"]
 		self.ep_steps = 0
 		self.reset()
 
 	def step(self, action):
 		# print(action)
-		self.bird.apply_action(action)
-		p.stepSimulation()
+		self.n_step += 1
+		if self.n_step % self.action_interval == 0:
+			self.bird.apply_action(action)
+		else:
+			pass
+		# p.stepSimulation()
 
 		# What the bird is actually able to observe
-		if self.full_observation:
+		if self.params["env"]["full obs"]:
 			bird_ob, pos, ori, kill_bool = self.bird.get_full_observation()
 		else:
 			bird_ob, pos, ori, kill_bool = self.bird.get_observation() 
-
-		dist_to_goal = np.linalg.norm(np.array([pos[0] - self.goal[0],
-												pos[1] - self.goal[1]]))
-		goal_reward = max(self.prev_dist_to_goal - dist_to_goal, 0)
-		self.prev_dist_to_goal = dist_to_goal
 
 		# Done by running out of bounds
 		if (pos[0] >= 100 or pos[0] <= -100 or 
 			pos[1] >= 100 or pos[1] <= -100 or
 			pos[2] >= 1.5 or pos[2] <= 0.5):
 			self.done = True
-
-		# Done by reaching goal
-		if dist_to_goal < 1:
-			self.done = True
-			goal_reward = 50
 
 		# Done by breaking physical limits of wings/motors
 		if kill_bool: 
@@ -84,11 +80,7 @@ class FlapperEnv(gym.Env):
 		#			staying in vertical bounds, 
 		#			reaching goal
 
-		# reward = self.bird.reward() + goal_reward
 		reward = self.bird.reward()
-		# print(f"                                     Reward: {reward}")
-
-		# ob = np.concatenate((bird_ob, self.goal))
 		ob = bird_ob
 
 		self.ep_steps += 1
@@ -102,28 +94,19 @@ class FlapperEnv(gym.Env):
 	def reset(self):
 
 		p.resetSimulation(self.client)
-		p.setGravity(0,0,0)
+		gravity = self.params["env"]["gravity"]
+
+		p.setGravity(gravity[0],gravity[1],gravity[2])
 
 		# Reload bird
-		self.bird = Bird(self.client, self.traj_reset)
-
-
-		# Set goal to random target
-		x = (self.np_random.uniform(5, 9) if self.np_random.randint(2) else
-			 self.np_random.uniform(-5, -9))
-		y = (self.np_random.uniform(5, 9) if self.np_random.randint(2) else
-			 self.np_random.uniform(-5, -9))
-		self.goal = np.array([x,y])
-		self.prev_dist_to_goal = np.linalg.norm(self.goal)
-		Goal(self.client,self.goal)
-
+		self.bird = Bird(self.client, self.params)
+		
 		self.done = False
-		if self.full_observation:
+		if self.params["env"]["full obs"]:
 			bird_ob, pos, ori, kill_bool = self.bird.get_full_observation()
 		else:
 			bird_ob, pos, ori, kill_bool = self.bird.get_observation()
 
-		# ob = np.concatenate((bird_ob, self.goal))
 		ob = bird_ob	
 
 		return ob
