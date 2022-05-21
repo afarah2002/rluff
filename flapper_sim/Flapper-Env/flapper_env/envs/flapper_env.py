@@ -37,6 +37,7 @@ class FlapperEnv(gym.Env):
 		else:
 			self.client = p.connect(p.DIRECT)
 
+
 		p.setTimeStep(1/100, self.client)
 
 		self.action_interval = 1 # every _th timestep, it acts
@@ -63,12 +64,15 @@ class FlapperEnv(gym.Env):
 			bird_ob, pos, ori, kill_bool = self.bird.get_full_observation()
 		else:
 			bird_ob, pos, ori, kill_bool = self.bird.get_observation() 
+		p.resetDebugVisualizerCamera( cameraDistance=1, cameraYaw=45, cameraPitch=-30, cameraTargetPosition=(pos))
 
 		# Done by running out of bounds
 		if (pos[0] >= 100 or pos[0] <= -100 or 
 			pos[1] >= 100 or pos[1] <= -100 or
 			pos[2] >= 1.5 or pos[2] <= 0.5):
 			self.done = True
+
+		# print(pos)
 
 		# Done by breaking physical limits of wings/motors
 		if kill_bool: 
@@ -100,7 +104,7 @@ class FlapperEnv(gym.Env):
 
 		# Reload bird
 		self.bird = Bird(self.client, self.params)
-		
+
 		self.done = False
 		if self.params["env"]["full obs"]:
 			bird_ob, pos, ori, kill_bool = self.bird.get_full_observation()

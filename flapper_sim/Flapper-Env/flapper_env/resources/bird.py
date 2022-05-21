@@ -4,8 +4,6 @@ import pybullet as p
 import pybullet_data
 import numpy as np
 import math
-import vg
-
 
 class Bird:
 	def __init__(self, client, params):
@@ -133,7 +131,6 @@ class Bird:
 								vel_2d,
 								ang_vel_2d,
 								self.client)
-
 
 	def get_observation(self):
 		'''
@@ -331,10 +328,6 @@ class Bird:
 		cg_node_offset = np.array([0,0,0]) # disp (link local) from link CG to 0th node
 		s = 0.15 # span 
 		N = 20 # num of nodes
-		Cla = 0.6
-		Cda = 0.03
-		# Cl = 2.0
-		Cd = 0.04
 		rho = 1000 # fluid density
 		c = 0.1 # chord
 		dr = s/N
@@ -345,11 +338,14 @@ class Bird:
 
 		# print(np.dot(rot_mat,ang_vel))
 
-		r_nodes = np.array([np.dot(rot_mat, R_nodes[i,:]) for i in range(N)]) # vector from link CG to node in global coordinates
+		# r_nodes = np.array([np.dot(rot_mat, R_nodes[i,:]) for i in range(N)]) # vector from link CG to node in global coordinates
+		r_nodes = np.dot(rot_mat, R_nodes.T).T
 
-		v_nodes_about_link_CG = np.array([np.cross(ang_vel,r_nodes[i,:]) for i in range(N)]) # velocity about link CG in global coordinates
-		v_nodes = np.array([v_nodes_about_link_CG[i,:] + lin_vel for i in range(N)]) #
-		# v_nodes = np.array([lin_vel for i in range(N)]) #
+		# v_nodes_about_link_CG = np.array([np.cross(ang_vel,r_nodes[i,:]) for i in range(N)]) # velocity about link CG in global coordinates
+		v_nodes_about_link_CG = np.cross(ang_vel, r_nodes)
+		# v_nodes = np.array([v_nodes_about_link_CG[i,:] + lin_vel for i in range(N)]) #
+		v_nodes = np.add(v_nodes_about_link_CG, lin_vel)
+
 
 		# print(np.linalg.norm(v_nodes[10,:]))
 
@@ -360,7 +356,8 @@ class Bird:
 		# print(v_flow_3D_global[10,:])
 
 		# convert 3d flow from global to local frame
-		v_flow_3D_local = np.array([np.dot(np.linalg.inv(rot_mat),v_flow_3D_global[i,:]) for i in range(N)])
+		# v_flow_3D_local = np.array([np.dot(np.linalg.inv(rot_mat),v_flow_3D_global[i,:]) for i in range(N)])
+		v_flow_3D_local = np.dot(np.linalg.inv(rot_mat), v_flow_3D_global.T).T
 		# print(v_flow_3D_local[10,:])
 
 		# project local 3d flow onto local YZ plane (cross section wing)
@@ -379,10 +376,6 @@ class Bird:
 		v_sq = np.power(np.linalg.norm(v_flow_2D_local,axis=1),2) # squared velocity of flow
 		v_sq = np.tile(v_sq,(3,1)).T
 		# print(psi)
-		if link_num == 1:
-			self.datalog["AoA"][0] = psi[10]
-		else:
-			self.datalog["AoA"][1] = psi[10]
 
 		vf_norm = (-1)**(link_num+1)*np.cross(x_i, v_flow_2D_local) # normal to flow (span X flow)
 		# print(vf_norm[10,:])

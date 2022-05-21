@@ -130,9 +130,11 @@ class Threads:
 		model.learn(total_timesteps=params["env"]["total timesteps"], tb_log_name="first_run")
 		model.save(f"{agent_dir}/agent")
 
+
+
 def main():
 
-	for i in range(1,1000): # num of runs
+	for i in range(2,1000): # num of runs
 		Threads.ai_main_train(i)
 	# i = int(float(input()))
 	# print(i)
