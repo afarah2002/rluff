@@ -28,9 +28,28 @@ import gui.framework as gui_framework
 
 class Threads:
 
-	def expert_main(data_classes):
+	def expert_main():
 
-		env = gym.make('Flapper-v0')
+
+		params = {"env" : {"2D" : True, # constraints to 2d plane
+						   "full obs" : True, # gives as much data as possible
+				  		   "gravity" : [0,0,0], 
+				  		   "gui" : True, 
+				  		   "max ep steps" : 1300, #100*np.random.randint(10,20),
+				  		   "run" : None, # run number
+				  		   "traj reset" : False,
+				  		   "total timesteps" : 5e4}, # resets into a state familiar to student
+				  "bird" : {"student" : True, # uses pretrained model
+				  			"rewards" : 
+				  				{"forward" : 1.,
+				  				 "torque" : -np.random.uniform(.1,1.), # penalties must be negative
+				  				 "height" : -np.random.uniform(0.001,0.1), # penalties must be negative
+				  				 "instability" : -np.random.uniform(0.0001,0.01)}, # penalties must be negative
+				  			"max wing ang vel" : 10,
+				  			}
+				  }
+
+		env = gym.make('Flapper-v0', params=params)
 		num_interactions = int(4e4)
 
 		if isinstance(env.action_space, gym.spaces.Box):
@@ -70,10 +89,10 @@ class Threads:
 				print(f"New stroke plane angle phase shift: {sp_shift*90} deg")
 				env.reset()
 
-		np.savez_compressed(
-			"expert_data",
-			expert_actions=expert_actions,
-			expert_observations=expert_observations)
+		# np.savez_compressed(
+		# 	"expert_data",
+		# 	expert_actions=expert_actions,
+		# 	expert_observations=expert_observations)
 
 	def ai_main_train(run_num):
 
@@ -89,17 +108,17 @@ class Threads:
 						   "full obs" : True, # gives as much data as possible
 				  		   "gravity" : [0,0,0], 
 				  		   "gui" : False, 
-				  		   "max ep steps" : 100*np.random.randint(10,20),
+				  		   "max ep steps" : 1300, #100*np.random.randint(10,20),
 				  		   "run" : run, # run number
 				  		   "traj reset" : False,
 				  		   "total timesteps" : 1e5}, # resets into a state familiar to student
 				  "bird" : {"student" : False, # uses pretrained model
 				  			"rewards" : 
 				  				{"forward" : 1.,
-				  				 "torque" : -np.random.uniform(0,0.2), # penalties must be negative
+				  				 "torque" : -np.random.uniform(.0001,.001), # penalties must be negative
 				  				 "height" : -np.random.uniform(0.001,0.1), # penalties must be negative
 				  				 "instability" : -np.random.uniform(0.0001,0.01)}, # penalties must be negative
-				  			"max wing ang vel" : 1000,
+				  			"max wing ang vel" : 10,
 				  			}
 				  }
 		print(params)
@@ -115,7 +134,7 @@ class Threads:
 		logger = configure(log_path, ["stdout", "csv", "tensorboard"])
 
 		if params["bird"]["student"]:
-			model = SAC.load("sac_student") # use pretrained model
+			model = SAC.load("test_agents/sac_student") # use pretrained model
 			model.set_env(env)
 		else:
 			model = SAC("MlpPolicy", 
@@ -123,19 +142,34 @@ class Threads:
 						action_noise=action_noise, 
 						verbose=1, 
 						tensorboard_log="./flapper_tensorboard/")
+			# model = SAC.load(f"/home/nasa01/Documents/UML/willis/rluff/flapper_sim/Flapper-Env/trained_agents/SAC0021/agent")
+			# model.set_env(env)
 		
 		print("Training...")
 
 		model.set_logger(logger)
+		# num_saves = 10 # num of times the model saved and reloaded during the training
+		# for i in range(num_saves):
+		# 	if i > 0:
+		# 		# skip the first time, the model has not been saved yet
+		# 		model = SAC.load(f"{agent_dir}/agent")
+		# 	model.learn(total_timesteps=params["env"]["total timesteps"]/num_saves, tb_log_name="first_run")
+		# 	model.save(f"{agent_dir}/agent")
+
 		model.learn(total_timesteps=params["env"]["total timesteps"], tb_log_name="first_run")
 		model.save(f"{agent_dir}/agent")
+		del model, env, logger
 
 
 
 def main():
 
-	for i in range(2,1000): # num of runs
-		Threads.ai_main_train(i)
+	# for i in range(13,1000): # num of runs
+	i = 25
+	Threads.ai_main_train(i)
+
+	# Threads.expert_main()
+
 	# i = int(float(input()))
 	# print(i)
 
@@ -174,6 +208,7 @@ def main():
 
 	# if GUI:
 	# 	gui_app.mainloop()
+
 
 if __name__ == '__main__':
 	main()

@@ -50,6 +50,8 @@ gym.add_ground(sim, plane_params)
 asset_root = '/home/nasa01/Documents/UML/willis/rluff/isaac_flapper/Flapper-Env/resources/spm-asm-v6-2'
 asset_file = "urdf/spm-asm-v6-2.urdf"
 
+
+
 object_asset_options = gymapi.AssetOptions()
 object_asset_options.disable_gravity = False
 object_asset = gym.load_asset(sim, asset_root, asset_file, object_asset_options)

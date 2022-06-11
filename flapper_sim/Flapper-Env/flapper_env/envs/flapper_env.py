@@ -15,8 +15,12 @@ class FlapperEnv(gym.Env):
 		#----------------------------------#
 		# Continuous space boxes
 		self.action_space = gym.spaces.Box(
-			low=np.array([-1.3, -0.7854, -0.7854]), # [stroke plane angle, wing angle]
-			high=np.array([1.3, 0.7854, 0.7854]))
+			# low=np.array([-1.3, -0.7854, -0.7854]), # [stroke plane angle, wing angle]
+			# high=np.array([1.3, 0.7854, 0.7854]))
+			low=np.array([-1.3, -0.05, -0.05]), # [stroke plane angle, change in wing angle]
+			high=np.array([1.3, 0.05, 0.05]))
+			# low=np.array([-1.3,-0.9*0.2, -0.9*0.2]), # [stroke plane angle, wing torque]
+			# high=np.array([1.3, 0.9*0.2, 0.9*0.2]))
 
 		# How much data should we include?
 		if self.params["env"]["full obs"]:
@@ -52,11 +56,19 @@ class FlapperEnv(gym.Env):
 
 	def step(self, action):
 		# print(action)
-		self.n_step += 1
-		if self.n_step % self.action_interval == 0:
-			self.bird.apply_action(action)
-		else:
-			pass
+
+		# used when the change in wing angle is the action
+		self.left_wing_pos += action[1]
+		self.right_wing_pos += action[2]
+		self.bird.apply_action(np.array([action[0], self.left_wing_pos, self.right_wing_pos]))
+
+		# used when the wing angle is the action
+		# self.bird.apply_action(action)
+
+		# self.n_step += 1
+		# if self.n_step % self.action_interval == 0:
+		# else:
+		# 	pass
 		# p.stepSimulation()
 
 		# What the bird is actually able to observe
@@ -96,6 +108,9 @@ class FlapperEnv(gym.Env):
 		return ob, reward, self.done, dict()
 
 	def reset(self):
+
+		# used when the change in wing angle is the action
+		self.left_wing_pos, self.right_wing_pos = 0, 0
 
 		p.resetSimulation(self.client)
 		gravity = self.params["env"]["gravity"]

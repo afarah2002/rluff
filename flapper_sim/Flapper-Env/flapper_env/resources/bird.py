@@ -26,7 +26,6 @@ class Bird:
 		for j in [0,1,2]:
 			p.enableJointForceTorqueSensor(self.bird, j, 1, self.client)
 
-
 		# p.resetBaseVelocity(self.bird, np.array([0,-.1,0]), np.array([0,0,0]), self.client)
 		
 		self.datalog = {"Stroke" : None, 
@@ -73,7 +72,7 @@ class Bird:
 		'''
 		self.action = action
 		stroke_plane_angle, left_wing_pos, right_wing_pos = action
-
+		# stroke_plane_angle, left_wing_trq, right_wing_trq = action
 		# Set stroke plane angle (position control)
 		p.setJointMotorControlArray(self.bird, np.array(self.stroke_plane_joint),
 									controlMode=p.POSITION_CONTROL,
@@ -81,21 +80,36 @@ class Bird:
 									physicsClientId=self.client)
 
 		# Using wing position for direct control, infer torques based on resulting kinematics
-		wing_positions = [left_wing_pos, right_wing_pos]
-		same_wing_positions = [left_wing_pos, left_wing_pos]
+
 		max_wing_ang_vel = self.params["bird"]["max wing ang vel"] # rad/s 
 
 		p.setJointMotorControl2(self.bird, 1,
 								controlMode=p.POSITION_CONTROL,
 								targetPosition=left_wing_pos,
 								physicsClientId=self.client,
-								maxVelocity=max_wing_ang_vel)		
+								maxVelocity=max_wing_ang_vel,
+								force=0.2)		
 
 		p.setJointMotorControl2(self.bird, 2,
 								controlMode=p.POSITION_CONTROL,
 								targetPosition=right_wing_pos,
 								physicsClientId=self.client,
-								maxVelocity=max_wing_ang_vel)		
+								maxVelocity=max_wing_ang_vel,
+								force=0.2)	
+
+		#-----------------torque control-----------------#
+		# for j in self.wing_joints:
+		# 	# disable default velocity/position of motor, lets you use torque control
+		# 	p.setJointMotorControl2(self.bird, j, p.VELOCITY_CONTROL, force=0.2)
+		# p.setJointMotorControl2(bodyIndex=self.bird,
+		# 						jointIndex=1,
+		# 						controlMode=p.TORQUE_CONTROL,
+		# 						force=left_wing_trq)
+		# p.setJointMotorControl2(bodyIndex=self.bird,
+		# 						jointIndex=2,
+		# 						controlMode=p.TORQUE_CONTROL,
+		# 						force=right_wing_trq)
+		#------------------------------------------------#	
 
 		# Aero forces generated from link motion
 		pos_1, dT_1, num_nodes = self.BEMT2(1)
@@ -138,16 +152,16 @@ class Bird:
 		as state observations
 		Total state pack consists of 
 		 - Base dynamics
-		 	- IMU
-		 		- ang vel in IMU local frame (x,y,z): 3
-		 		- lin vel in IMU local frame (x,y,z): 3
-		 	- Joints
-		 		- stroke plane 
-		 			- motor angle, ang vel: 2
-		 		- left wing 
-		 			- motor angle, ang vel, torque: 3
-		 		- right wing
-		 			- motor angle, ang vel, torque: 3
+			- IMU
+				- ang vel in IMU local frame (x,y,z): 3
+				- lin vel in IMU local frame (x,y,z): 3
+			- Joints
+				- stroke plane 
+					- motor angle, ang vel: 2
+				- left wing 
+					- motor angle, ang vel, torque: 3
+				- right wing
+					- motor angle, ang vel, torque: 3
 		'''
 
 		# p.resetBaseVelocity(self.bird, np.array([0,-1,0]), np.array([0,0,0]), self.client)
@@ -237,7 +251,7 @@ class Bird:
 		cur_link_state = p.getLinkState(self.bird, link_num,
 										computeLinkVelocity=True, 
 										computeForwardKinematics=True,
-									 	physicsClientId=self.client)
+										physicsClientId=self.client)
 
 		cur_link_pos = np.array(cur_link_state[0]) # linkWorldPosition, 3vec [x,y,z]
 		cur_link_ori = np.array(cur_link_state[1]) # linkWorldOrientation, quaternion [x,y,z,w]
@@ -279,6 +293,16 @@ class Bird:
 		instability = np.linalg.norm(IMU_ang_vel_GLOBAL)**2
 
 		if instability > 50:
+			return True
+		else:
+			return False
+
+	def is_torque_limit_broken(self):
+		# The T-motors have a max torque of 0.2 Nm, is that broken here
+		_, _, left_joint_trq = self.get_joint_pos_vel_trq(1)
+		_, _, right_joint_trq = self.get_joint_pos_vel_trq(2)
+		max_joint_trq = 0.9*0.2 # Nm
+		if left_joint_trq >= max_joint_trq or right_joint_trq >= max_joint_trq:
 			return True
 		else:
 			return False
@@ -452,6 +476,8 @@ class Bird:
 		_, _, spm_joint_trq = self.get_joint_pos_vel_trq(0)
 		_, _, left_joint_trq = self.get_joint_pos_vel_trq(1)
 		_, _, right_joint_trq = self.get_joint_pos_vel_trq(2)
+		print(left_joint_trq, right_joint_trq)
+
 		torque_penalty = spm_joint_trq**2 + left_joint_trq**2 + right_joint_trq**2
 
 		# Height rewards
@@ -484,6 +510,7 @@ class Bird:
 		lim_broken_bool_left = self.is_joint_limit_broken(1)
 		lim_broken_bool_right = self.is_joint_limit_broken(2)
 		instability_bool = self.is_instability_limit_broken()
+		# torque_lim_bool = self.is_torque_limit_broken()
 
 		lim_bools = [height_lim_bool, 
 					 lim_broken_bool_left, 
