@@ -99,7 +99,7 @@ class Threads:
 		# directory organization
 		runs_names = ["0"*(4-len(str(i))) + str(i) for i in range(1000)]
 		run = runs_names[run_num]
-		agent_dir = f"/home/nasa01/Documents/UML/willis/rluff/flapper_sim/Flapper-Env/trained_agents/SAC{run}"
+		agent_dir = f"/home/afarah/Documents/UML/willis/rluff/flapper_sim/Flapper-Env/trained_agents/SAC{run}"
 		if os.path.exists(agent_dir) and os.path.isdir(agent_dir):
 			shutil.rmtree(agent_dir)
 		Path(agent_dir).mkdir(parents=True, exist_ok=True)
@@ -142,7 +142,7 @@ class Threads:
 						action_noise=action_noise, 
 						verbose=1, 
 						tensorboard_log="./flapper_tensorboard/")
-			# model = SAC.load(f"/home/nasa01/Documents/UML/willis/rluff/flapper_sim/Flapper-Env/trained_agents/SAC0021/agent")
+			# model = SAC.load(f"/home/afarah/Documents/UML/willis/rluff/flapper_sim/Flapper-Env/trained_agents/SAC0021/agent")
 			# model.set_env(env)
 		
 		print("Training...")

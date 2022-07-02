@@ -26,7 +26,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="/home/nasa01/Documents/UML/willis/rluff/isaac_flapper/Flapper-Env/resources/spm-asm-v6-2/meshes/body.obj" />
+          filename="/home/afarah/Documents/UML/willis/rluff/isaac_flapper/Flapper-Env/resources/spm-asm-v6-2/meshes/body.obj" />
       </geometry>
       <material
         name="">
@@ -40,7 +40,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="/home/nasa01/Documents/UML/willis/rluff/isaac_flapper/Flapper-Env/resources/spm-asm-v6-2/meshes/body.obj" />
+          filename="/home/afarah/Documents/UML/willis/rluff/isaac_flapper/Flapper-Env/resources/spm-asm-v6-2/meshes/body.obj" />
       </geometry>
     </collision>
   </link>
@@ -66,7 +66,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="/home/nasa01/Documents/UML/willis/rluff/isaac_flapper/Flapper-Env/resources/spm-asm-v6-2/meshes/egg.obj" />
+          filename="/home/afarah/Documents/UML/willis/rluff/isaac_flapper/Flapper-Env/resources/spm-asm-v6-2/meshes/egg.obj" />
       </geometry>
       <material
         name="">
@@ -80,7 +80,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="/home/nasa01/Documents/UML/willis/rluff/isaac_flapper/Flapper-Env/resources/spm-asm-v6-2/meshes/egg.obj" />
+          filename="/home/afarah/Documents/UML/willis/rluff/isaac_flapper/Flapper-Env/resources/spm-asm-v6-2/meshes/egg.obj" />
       </geometry>
     </collision>
   </link>
@@ -124,7 +124,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="/home/nasa01/Documents/UML/willis/rluff/isaac_flapper/Flapper-Env/resources/spm-asm-v6-2/meshes/left.obj" />
+          filename="/home/afarah/Documents/UML/willis/rluff/isaac_flapper/Flapper-Env/resources/spm-asm-v6-2/meshes/left.obj" />
       </geometry>
       <material
         name="">
@@ -138,7 +138,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="/home/nasa01/Documents/UML/willis/rluff/isaac_flapper/Flapper-Env/resources/spm-asm-v6-2/meshes/left.obj" />
+          filename="/home/afarah/Documents/UML/willis/rluff/isaac_flapper/Flapper-Env/resources/spm-asm-v6-2/meshes/left.obj" />
       </geometry>
     </collision>
   </link>
@@ -182,7 +182,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="/home/nasa01/Documents/UML/willis/rluff/isaac_flapper/Flapper-Env/resources/spm-asm-v6-2/meshes/right.obj" />
+          filename="/home/afarah/Documents/UML/willis/rluff/isaac_flapper/Flapper-Env/resources/spm-asm-v6-2/meshes/right.obj" />
       </geometry>
       <material
         name="">
@@ -196,7 +196,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="/home/nasa01/Documents/UML/willis/rluff/isaac_flapper/Flapper-Env/resources/spm-asm-v6-2/meshes/right.obj" />
+          filename="/home/afarah/Documents/UML/willis/rluff/isaac_flapper/Flapper-Env/resources/spm-asm-v6-2/meshes/right.obj" />
       </geometry>
     </collision>
   </link>
@@ -240,7 +240,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="/home/nasa01/Documents/UML/willis/rluff/isaac_flapper/Flapper-Env/resources/spm-asm-v6-2/meshes/IMU.obj" />
+          filename="/home/afarah/Documents/UML/willis/rluff/isaac_flapper/Flapper-Env/resources/spm-asm-v6-2/meshes/IMU.obj" />
       </geometry>
       <material
         name="">
@@ -254,7 +254,7 @@
         rpy="0 0 0" />
       <geometry>
         <mesh
-          filename="/home/nasa01/Documents/UML/willis/rluff/isaac_flapper/Flapper-Env/resources/spm-asm-v6-2/meshes/IMU.obj" />
+          filename="/home/afarah/Documents/UML/willis/rluff/isaac_flapper/Flapper-Env/resources/spm-asm-v6-2/meshes/IMU.obj" />
       </geometry>
     </collision>
   </link>

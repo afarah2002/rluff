@@ -476,7 +476,7 @@ class Bird:
 		_, _, spm_joint_trq = self.get_joint_pos_vel_trq(0)
 		_, _, left_joint_trq = self.get_joint_pos_vel_trq(1)
 		_, _, right_joint_trq = self.get_joint_pos_vel_trq(2)
-		print(left_joint_trq, right_joint_trq)
+		# print(left_joint_trq, right_joint_trq)
 
 		torque_penalty = spm_joint_trq**2 + left_joint_trq**2 + right_joint_trq**2
 
