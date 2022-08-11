@@ -360,14 +360,14 @@ class Bird(VecTask):
 			frame = gymapi.LOCAL_SPACE
 
 		if forces_rf == "env":
-			self.lforces[...] = self.dt*self.ldT
+			self.lforces[...] = 0*self.dt*self.ldT
 			self.rforces[...] = self.dt*self.rdT
 			self.lnodes[...] = self.lr_nodes
 			self.rnodes[...] = self.rr_nodes
 			frame = gymapi.ENV_SPACE
 
 
-		# print(self.lforces, "\n\n", self.rforces)
+		print(self.lforces, "\n\n", self.rforces)
 
 		# print(gymtorch.wrap_tensor(gymtorch.unwrap_tensor(lforces.contiguous()))).view((self.num_envs, self.N, 3))
 
@@ -482,7 +482,7 @@ class Bird(VecTask):
 #####################################################################
 ###=========================jit functions=========================###
 #####################################################################
-# @torch.jit.script
+@torch.jit.script
 def compute_bird_reward(obs_buf, reset_buf, progress_buf, max_episode_length):
 	# type: (Tensor, Tensor, Tensor, float) -> Tuple[Tensor, Tensor]
 
