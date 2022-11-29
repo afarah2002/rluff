@@ -2,7 +2,7 @@ task:
   name: Bird
   physics_engine: ${..physics_engine}
   env:
-    numEnvs: ${resolve_default:2,${...num_envs}}
+    numEnvs: ${resolve_default:4,${...num_envs}}
     envSpacing: 2.5
     maxEpisodeLength: 2000
     enableDebugVis: false
