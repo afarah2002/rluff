@@ -1,0 +1,274 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- This URDF was automatically created by SolidWorks to URDF Exporter! Originally created by Stephen Brawner (brawner@gmail.com) 
+     Commit Version: 1.6.0-4-g7f85cfe  Build Version: 1.6.7995.38578
+     For more information, please see http://wiki.ros.org/sw_urdf_exporter -->
+<robot
+  name="spm-asm-v6-3">
+  <link
+    name="body">
+    <inertial>
+      <origin
+        xyz="0.011646392081942 0.334712145669818 0.000369095483594463"
+        rpy="0 0 0" />
+      <mass
+        value="2.07033515308983" />
+      <inertia
+        ixx="0.00901111011572808"
+        ixy="-1.38025632592285E-05"
+        ixz="-1.54467496685257E-05"
+        iyy="0.00491176388099026"
+        iyz="1.29406957045104E-05"
+        izz="0.00526579254355175" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="../meshes/body.obj" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.792156862745098 0.819607843137255 0.933333333333333 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="../meshes/body.obj" />
+      </geometry>
+    </collision>
+  </link>
+  <link
+    name="egg">
+    <inertial>
+      <origin
+        xyz="-0.000805276780643516 0.00020210597587154 -4.96643786280753E-06"
+        rpy="0 0 0" />
+      <mass
+        value="0.537185924998917" />
+      <inertia
+        ixx="0.00066306171326927"
+        ixy="-1.86453797868477E-12"
+        ixz="-1.22767869668821E-06"
+        iyy="0.000784693628873597"
+        iyz="2.05123237268647E-11"
+        izz="0.000292004959967368" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="../meshes/egg.obj" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.698039215686274 0.698039215686274 0.698039215686274 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="../meshes/egg.obj" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="egg"
+    type="continuous">
+    <origin
+      xyz="0 0.33 0"
+      rpy="-0.0037372 0 -1.5708" />
+    <parent
+      link="body" />
+    <child
+      link="egg" />
+    <axis
+      xyz="0 1 0" />
+    <limit
+      lower="-1.309"
+      upper="1.309"
+      effort="0.02"
+      velocity="3.929411764705882" />
+  </joint>
+  <link
+    name="left">
+    <inertial>
+      <origin
+        xyz="-0.0277532080565398 -0.00194882125049706 0.000340162042263722"
+        rpy="0 0 0" />
+      <mass
+        value="0.198708570451306" />
+      <inertia
+        ixx="0.000130286545377044"
+        ixy="-2.30443902186734E-06"
+        ixz="-6.28608237686316E-13"
+        iyy="0.000408537990224433"
+        iyz="-5.27781293349654E-13"
+        izz="0.000528322915497125" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="../meshes/left.obj" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.898039215686275 0.917647058823529 0.929411764705882 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="../meshes/left.obj" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="left"
+    type="continuous">
+    <origin
+      xyz="-0.0037561 0.16775 0.00032324"
+      rpy="-0.0061657 -0.0040853 1.5708" />
+    <parent
+      link="egg" />
+    <child
+      link="left" />
+    <axis
+      xyz="0 1 0" />
+    <limit
+      lower="-0.7854"
+      upper="0.7854"
+      effort="0.2"
+      velocity="1" />
+  </joint>
+  <link
+    name="right">
+    <inertial>
+      <origin
+        xyz="-0.0252631154540074 0.00138809724141081 -0.000140935121424045"
+        rpy="0 0 0" />
+      <mass
+        value="0.195220232886914" />
+      <inertia
+        ixx="0.000129533898386618"
+        ixy="4.62745248432289E-07"
+        ixz="-8.39616064338824E-14"
+        iyy="0.000408647943923483"
+        iyz="-1.56036657187231E-13"
+        izz="0.00052782048670946" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="../meshes/right.obj" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.898039215686275 0.917647058823529 0.929411764705882 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="../meshes/right.obj" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="right"
+    type="continuous">
+    <origin
+      xyz="-0.0049748 -0.16771 -0.00033312"
+      rpy="0.0061656 0.0026467 -1.5708" />
+    <parent
+      link="egg" />
+    <child
+      link="right" />
+    <axis
+      xyz="0 1 0" />
+    <limit
+      lower="-0.7854"
+      upper="0.7854"
+      effort="0.2"
+      velocity="1" />
+  </joint>
+  <link
+    name="imu">
+    <inertial>
+      <origin
+        xyz="0 0.000799988826483636 -2.9897639104287E-06"
+        rpy="0 0 0" />
+      <mass
+        value="0.000677984" />
+      <inertia
+        ixx="1.7286106833904E-08"
+        ixy="1.10646707539008E-26"
+        ixz="-5.96151160905482E-24"
+        iyy="5.05349191052311E-08"
+        iyz="-1.05982515983357E-24"
+        izz="3.35380854446605E-08" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="../meshes/imu.obj" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.792156862745098 0.819607843137255 0.933333333333333 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="../meshes/imu.obj" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="imu"
+    type="fixed">
+    <origin
+      xyz="-0.00079999 0.069194 0"
+      rpy="-3.1379 0 1.5708" />
+    <parent
+      link="body" />
+    <child
+      link="imu" />
+    <axis
+      xyz="0 0 0" />
+  </joint>
+</robot>

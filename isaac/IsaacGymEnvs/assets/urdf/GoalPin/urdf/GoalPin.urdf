@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- This URDF was automatically created by SolidWorks to URDF Exporter! Originally created by Stephen Brawner (brawner@gmail.com) 
+     Commit Version: 1.6.0-4-g7f85cfe  Build Version: 1.6.7995.38578
+     For more information, please see http://wiki.ros.org/sw_urdf_exporter -->
+<robot
+  name="GoalPin">
+  <link
+    name="base_link">
+    <inertial>
+      <origin
+        xyz="6.763134216048E-07 -2.18261648544423E-16 20.2355500030835"
+        rpy="0 0 0" />
+      <mass
+        value="12847.0123913111" />
+      <inertia
+        ixx="736089.328069523"
+        ixy="-6.21545496151821E-13"
+        ixz="-0.0124575504939455"
+        iyy="736089.250754866"
+        iyz="9.4088173303082E-12"
+        izz="5259.07898792086" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="../meshes/base_link.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.792156862745098 0.819607843137255 0.933333333333333 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="../meshes/base_link.STL" />
+      </geometry>
+    </collision>
+  </link>
+</robot>

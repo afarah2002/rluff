@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- This URDF was automatically created by SolidWorks to URDF Exporter! Originally created by Stephen Brawner (brawner@gmail.com) 
+     Commit Version: 1.6.0-4-g7f85cfe  Build Version: 1.6.7995.38578
+     For more information, please see http://wiki.ros.org/sw_urdf_exporter -->
+<robot
+  name="Glider_S">
+  <link
+    name="base_link">
+    <inertial>
+      <origin
+        xyz="1.43869886848336E-06 3.35766296544193E-07 3.64656299112198E-06"
+        rpy="0 0 0" />
+      <mass
+        value="6.40212555191173" />
+      <inertia
+        ixx="0.407285249853759"
+        ixy="-1.35557712257102E-06"
+        ixz="-0.0109808363072441"
+        iyy="0.133697162714222"
+        iyz="-2.07722018499875E-06"
+        izz="0.522988644134952" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="../meshes/base_link.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.792156862745098 0.819607843137255 0.933333333333333 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="../meshes/base_link.STL" />
+      </geometry>
+    </collision>
+  </link>
+</robot>
