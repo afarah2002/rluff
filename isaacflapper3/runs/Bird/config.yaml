@@ -2,7 +2,7 @@ task:
   name: Bird
   physics_engine: ${..physics_engine}
   env:
-    numEnvs: ${resolve_default:4,${...num_envs}}
+    numEnvs: ${resolve_default:10,${...num_envs}}
     envSpacing: 2.5
     maxEpisodeLength: 2000
     enableDebugVis: false
@@ -113,7 +113,7 @@ graphics_device_id: 0
 num_threads: 4
 solver_type: 1
 num_subscenes: 4
-test: false
+test: true
 checkpoint: ''
 multi_gpu: false
 wandb_activate: false

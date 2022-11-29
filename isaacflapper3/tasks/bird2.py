@@ -541,7 +541,7 @@ class Bird(VecTask):
 		# Turning force distributions (lift + drag) into single forces and torques that act on each wing
 		# Sum forces, apply to COM
 		forces_sum = torch.sum(self.F_global, dim=2)
-		print("Sum forces: ", forces_sum[0,:])
+		# print("Sum forces: ", forces_sum[0,:])
 
 		# Calculate torque contribution from each force on each node
 
@@ -555,12 +555,11 @@ class Bird(VecTask):
 		torques_sum = torch.sum(torques, dim=2)
 
 		# Assign these forces and torques to the selfforces/torques defined up top, in the 3rd and 4th rigid bodies (the wings)
-		self.forces[:,3:,:] = forces_sum
-		self.torques[:,3:,:] = torques_sum
+
 
 		#-----------------------------------------------------#
 
-		return forces_sum, self.r_wing_COM
+		return forces_sum, torques_sum, self.r_wing_COM
 		###########################################################################################################
 		###########################################################################################################
 
@@ -570,23 +569,38 @@ class Bird(VecTask):
 							dtype=torch.int32, 
 							device=self.device).repeat((self.num_envs, 1))
 
+		# apply upward force to one wing
+		# if self.t == 2:
+		# 	self.forces[:,:,:] = 0
+		# 	self.torques[:,:,:] = 0
+		# 	self.forces[:,3,2] = -1e-2
+		# 	self.forces[:,4,2] = 1e-2
+		# 	self.torques[:,:,:] = 0
+		# 	print(True)
+		# else:
+		# 	self.forces[:,:,:] = 0
+		# 	self.torques[:,:,:] = 0
 
-		if self.t < 100:
-			self.root_linvel[:,1] = -1. #<--- this is how you set HoG control!
+		# if self.t > 100:
+			# self.root_linvel[:,1] = -1e-3 #<--- this is how you set HoG control!
 			# self.root_linvel[:,0] = 0 #<--- this is how you set HoG control!
 			# self.root_angvel[:,:] = 0
 			# self.root_angvel[:,1] = 0
 			# self.root_angvel[:,2] = 0
-			self.gym.set_actor_root_state_tensor_indexed(self.sim, 
-														 gymtorch.unwrap_tensor(self.root_states),
-														 gymtorch.unwrap_tensor(indices), len(indices))
+		# self.gym.set_actor_root_state_tensor_indexed(self.sim, 
+		# 											 gymtorch.unwrap_tensor(self.root_states),
+		# 											 gymtorch.unwrap_tensor(indices), len(indices))
+		if self.t < 100:
+			self.root_linvel[:,1] = -1
+			print(self.root_states)
+			self.gym.set_actor_root_state_tensor(self.sim, gymtorch.unwrap_tensor(self.root_states))
 
 		# _actions = [-1.*np.sin(5*self.t*0.01), 10*np.sin(5*self.t*0.01), 10*np.sin(5*self.t*0.01)]
 		# _actions = [0, 1*np.sin(10*self.t*0.01), 1*np.sin(10*self.t*0.01)]
 		# _actions = [0,-1,-1]
-		_actions = [-0.1,0,0]
 		# _actions = [-1.*np.sin(10*self.t*0.01), 0, 0]
 
+		_actions = [-0.1,0,0]
 		actions = to_torch(_actions, 
 							dtype=torch.float, 
 							device=self.device).repeat((self.num_envs, 1))
@@ -598,19 +612,30 @@ class Bird(VecTask):
 		lwing_handle, self.lr_nodes, self.ldT, self.laux_data_pack = self.bemt2("left")
 		rwing_handle, self.rr_nodes, self.rdT, self.raux_data_pack = self.bemt2("right")
 		##################################### LIFTING LINE ###################################################
-		self.wing_forces, self.wing_CoMs = self.lifting_line()
+		self.wing_forces, self.wing_torques, self.wing_CoMs = self.lifting_line()
 
-		if torch.isnan(torch.sum(self.forces)):
-			self.forces = torch.zeros_like(self.forces)
-			self.torques = torch.zeros_like(self.torques)
-			# dT = None
+		self.forces[:,3:,:] = self.wing_forces
+		self.torques[:,3:,:] = self.wing_torques
+
+		print(self.forces)
+
+		# if torch.isnan(torch.sum(self.forces)):
+		# 	self.forces = torch.zeros_like(self.forces)
+		# 	self.torques = torch.zeros_like(self.torques)
+		# print(self.forces)
+		# time.sleep(1)
+		# 	# dT = None
 
 		##############################################################################################
 
-		# if self.t > 100:
+		# if self.t > 200:
 		# 	self.gym.apply_rigid_body_force_tensors(self.sim, gymtorch.unwrap_tensor(self.forces), 
 		# 													gymtorch.unwrap_tensor(self.torques), 
 		# 													gymapi.ENV_SPACE)
+		# print(self.t)
+		# self.gym.apply_rigid_body_force_at_pos_tensors(self.sim, gymtorch.unwrap_tensor(self.forces), 
+		# 												None, 
+		# 												gymapi.ENV_SPACE)
 
 	def post_physics_step(self):
 		self.progress_buf += 1
@@ -628,10 +653,10 @@ class Bird(VecTask):
 
 			# print(self.ends)
 			verts = torch.stack([self.starts, self.ends], dim=2).cpu().numpy()
-			colors = np.zeros((self.num_envs * 4, 3), dtype=np.float32)
+			colors = np.zeros((4, 3), dtype=np.float32)
 			colors[..., 0] = 1.0
 			self.gym.clear_lines(self.viewer)
-			self.gym.add_lines(self.viewer, None, self.num_envs * 4, verts, colors)
+			self.gym.add_lines(self.viewer, None, 4, verts, colors)
 
 		
 		# self.compute_observations()
