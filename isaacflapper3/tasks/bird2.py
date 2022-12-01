@@ -52,7 +52,7 @@ class Bird(VecTask):
 		self.gym.refresh_dof_state_tensor(self.sim)
 
 		# control tensors
-		self.N = 15
+		self.N = 20
 
 		self.forces = torch.zeros((self.num_envs, self.num_bodies, 3), dtype=torch.float32, device=self.device, requires_grad=False)
 		self.torques = torch.zeros((self.num_envs, self.num_bodies, 3), dtype=torch.float32, device=self.device, requires_grad=False)
@@ -175,7 +175,7 @@ class Bird(VecTask):
 		self.gym.refresh_dof_state_tensor(self.sim)
 		self.gym.refresh_actor_root_state_tensor(self.sim)
 		self.gym.refresh_rigid_body_state_tensor(self.sim)
-		self.obs_buf = self.root_states.view(self.num_envs, 1, 13)
+		# self.obs_buf = self.root_states.view(self.num_envs, 1, 13)
 		return self.obs_buf
 
 	def compute_reward(self):
@@ -431,15 +431,9 @@ class Bird(VecTask):
 						+ torch.tile(wing_pos, (1,self.N)).reshape(self.num_envs, self.N, 3)
 
 
+
 			v_nodes_about_link_origin = torch.cross(torch.tile(wing_angvel, (1,self.N)).reshape(self.num_envs, self.N, 3), 
 												r_nodes, dim=2)
-
-			# wing_angvel_local = torch.bmm(torch.inverse(rot_mat), wing_angvel[..., None]) # in local frame
-			# # get vel about local frame origin in LOCAL frame, then transform to global
-			# V_nodes_about_link_origin = torch.cross(torch.tile(wing_angvel_local, (1,self.N)).reshape(self.num_envs, self.N, 3), 
-			# 									R_nodes, dim=2)
-			# v_nodes_about_link_origin = torch.matmul(rot_mat, V_nodes_about_link_origin.transpose(1,2)).transpose(1,2)
-
 
 			v_nodes = torch.add(torch.tile(wing_linvel, (1,self.N)).reshape(self.num_envs, self.N, 3),
 								v_nodes_about_link_origin)
@@ -476,10 +470,12 @@ class Bird(VecTask):
 
 		# stack psis, v 2d local mags
 		psi = torch.stack([psi_wing1, psi_wing2])
+		# print(psi)
 		self.r_wing_COM = torch.stack([COM_wing_1, COM_wing_2]).transpose(0,1)
 		self.vec2 = psi.transpose(1,2)
 		v_flow_2D_local_mag = torch.stack([v_flow_2D_local_mag_wing_1, v_flow_2D_local_mag_wing_2]).transpose(1,2)
 		v_flow_3D_global = torch.stack([v_flow_3D_global_wing_1, v_flow_3D_global_wing_2])
+		# print(v_flow_3D_global)
 		r_nodes = torch.stack([nodes_wing_1, nodes_wing_2]).transpose(0,1)
 
 		###########################################################################################################
@@ -507,6 +503,9 @@ class Bird(VecTask):
 		spanwise_vector = torch.stack([global_x_i_wing_1, global_x_i_wing_2])
 
 		Direction_Of_Lift = torch.cross(spanwise_vector, v_flow_3D_global, dim=3)
+		Direction_Of_Lift[1,:,:,2] *= -1
+		# Direction_Of_Lift[1,:,:,2] *= -1
+
 
 		Direction_Of_Lift = torch.div(Direction_Of_Lift, torch.linalg.norm(Direction_Of_Lift, axis=3).reshape(2, self.num_envs, self.N, 1))
 		
@@ -531,11 +530,8 @@ class Bird(VecTask):
 		self.Lift_global = LiftDist_*Direction_Of_Lift_	
 		self.Drag_global = DragDist_*Direction_Of_Drag_
 		self.F_global = self.Lift_global + self.Drag_global        
-		# print("F_global: ", self.F_global[0,::])
-
 		self.F_global = torch.reshape(self.F_global, (self.M, 2, self.N, 3)) # global forces at each node
-
-		
+	
 
 		#-----------------------------------------------------#
 		# Turning force distributions (lift + drag) into single forces and torques that act on each wing
@@ -564,23 +560,24 @@ class Bird(VecTask):
 		###########################################################################################################
 
 	def pre_physics_step(self, actions):
-
+		# time.sleep(0.05)
 		indices = to_torch([0,1], 
 							dtype=torch.int32, 
 							device=self.device).repeat((self.num_envs, 1))
 
 		# apply upward force to one wing
-		# if self.t == 2:
+		# if self.t < 50:
 		# 	self.forces[:,:,:] = 0
 		# 	self.torques[:,:,:] = 0
-		# 	self.forces[:,3,2] = -1e-2
-		# 	self.forces[:,4,2] = 1e-2
+		# 	self.forces[:,0,1] = -10
+		# 	# self.forces[:,3,1] = -10
+		# 	# self.forces[:,4,1] = -10
 		# 	self.torques[:,:,:] = 0
 		# 	print(True)
 		# else:
+
 		# 	self.forces[:,:,:] = 0
 		# 	self.torques[:,:,:] = 0
-
 		# if self.t > 100:
 			# self.root_linvel[:,1] = -1e-3 #<--- this is how you set HoG control!
 			# self.root_linvel[:,0] = 0 #<--- this is how you set HoG control!
@@ -590,17 +587,17 @@ class Bird(VecTask):
 		# self.gym.set_actor_root_state_tensor_indexed(self.sim, 
 		# 											 gymtorch.unwrap_tensor(self.root_states),
 		# 											 gymtorch.unwrap_tensor(indices), len(indices))
-		if self.t < 100:
-			self.root_linvel[:,1] = -1
-			print(self.root_states)
-			self.gym.set_actor_root_state_tensor(self.sim, gymtorch.unwrap_tensor(self.root_states))
+		# if self.t < 100:
+		# 	self.root_linvel[:,1] = -1
+		# 	print(self.root_states)
+		# 	self.gym.set_actor_root_state_tensor(self.sim, gymtorch.unwrap_tensor(self.root_states))
 
-		# _actions = [-1.*np.sin(5*self.t*0.01), 10*np.sin(5*self.t*0.01), 10*np.sin(5*self.t*0.01)]
+		_actions = [-0.2*np.sin(10*self.t*0.01 + np.pi/4), 0.1*np.cos(5*self.t*0.01), 0.1*np.cos(5*self.t*0.01)]
 		# _actions = [0, 1*np.sin(10*self.t*0.01), 1*np.sin(10*self.t*0.01)]
 		# _actions = [0,-1,-1]
 		# _actions = [-1.*np.sin(10*self.t*0.01), 0, 0]
 
-		_actions = [-0.1,0,0]
+		# _actions = [-0.1,0,0]
 		actions = to_torch(_actions, 
 							dtype=torch.float, 
 							device=self.device).repeat((self.num_envs, 1))
@@ -614,10 +611,15 @@ class Bird(VecTask):
 		##################################### LIFTING LINE ###################################################
 		self.wing_forces, self.wing_torques, self.wing_CoMs = self.lifting_line()
 
-		self.forces[:,3:,:] = self.wing_forces
-		self.torques[:,3:,:] = self.wing_torques
+		# print(self.wing_forces)
 
-		print(self.forces)
+		# if self.t == 110:
+		# 	exit()
+
+		# self.forces[:,3:,:] = self.wing_forces
+		# self.torques[:,3:,:] = self.wing_torques
+
+		# print(self.forces)
 
 		# if torch.isnan(torch.sum(self.forces)):
 		# 	self.forces = torch.zeros_like(self.forces)
@@ -628,14 +630,12 @@ class Bird(VecTask):
 
 		##############################################################################################
 
-		# if self.t > 200:
-		# 	self.gym.apply_rigid_body_force_tensors(self.sim, gymtorch.unwrap_tensor(self.forces), 
-		# 													gymtorch.unwrap_tensor(self.torques), 
-		# 													gymapi.ENV_SPACE)
-		# print(self.t)
-		# self.gym.apply_rigid_body_force_at_pos_tensors(self.sim, gymtorch.unwrap_tensor(self.forces), 
-		# 												None, 
-		# 												gymapi.ENV_SPACE)
+		print("APPLYING FORCES")
+		self.gym.apply_rigid_body_force_tensors(self.sim, gymtorch.unwrap_tensor(self.forces), 
+															gymtorch.unwrap_tensor(self.torques), 
+															gymapi.ENV_SPACE)
+
+		print(self.root_linvel)
 
 	def post_physics_step(self):
 		self.progress_buf += 1
@@ -652,20 +652,23 @@ class Bird(VecTask):
 			# self.ends = self.starts + ends_test
 
 			# print(self.ends)
-			verts = torch.stack([self.starts, self.ends], dim=2).cpu().numpy()
+			verts_all = torch.stack([self.starts, self.ends], dim=2)
+
+			verts = verts_all[0,:,:]
+			verts = torch.unsqueeze(verts,dim=0).cpu().numpy()			
 			colors = np.zeros((4, 3), dtype=np.float32)
 			colors[..., 0] = 1.0
 			self.gym.clear_lines(self.viewer)
-			self.gym.add_lines(self.viewer, None, 4, verts, colors)
+			self.gym.add_lines(self.viewer, None, 20, verts, colors)
 
 		
-		# self.compute_observations()
+		self.compute_observations()
 		# self.compute_reward()
 
 	def reset_idx(self, env_ids):
 		# thank u @Tbarkin121 !!
 		positions = torch.zeros((len(env_ids), self.num_dof), device=self.device)
-		velocities = 0.5 * (torch.rand((len(env_ids), self.num_dof), device=self.device) - 0.5)
+		velocities = 0.0 * (torch.rand((len(env_ids), self.num_dof), device=self.device) - 0.5)
 
 		self.dof_pos[env_ids, :] = positions[:]
 		self.dof_vel[env_ids, :] = velocities[:]
@@ -684,6 +687,10 @@ class Bird(VecTask):
 
 		root_linvel_update = torch.zeros((len(env_ids), 3), device=self.device)
 		root_angvel_update = torch.zeros((len(env_ids), 3), device=self.device)
+
+		# SET INIT HoG CONTROL HERE!!! #
+		root_linvel_update[:,1] = -0.1
+
 		self.root_pos[env_ids, :] = root_pos_update
 		self.root_rot[env_ids, :] = root_rot_update
 		self.root_linvel[env_ids, :] = root_linvel_update
