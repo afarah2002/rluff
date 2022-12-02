@@ -2,7 +2,7 @@ task:
   name: Bird
   physics_engine: ${..physics_engine}
   env:
-    numEnvs: ${resolve_default:2,${...num_envs}}
+    numEnvs: ${resolve_default:1024,${...num_envs}}
     envSpacing: 2.5
     maxEpisodeLength: 2000
     enableDebugVis: false
@@ -93,7 +93,7 @@ train:
       truncate_grads: true
       e_clip: 0.2
       horizon_length: 16
-      minibatch_size: 16
+      minibatch_size: 4096
       mini_epochs: 8
       critic_coef: 2
       clip_value: true
@@ -125,4 +125,4 @@ capture_video: false
 capture_video_freq: 1464
 capture_video_len: 100
 force_render: true
-headless: false
+headless: true
