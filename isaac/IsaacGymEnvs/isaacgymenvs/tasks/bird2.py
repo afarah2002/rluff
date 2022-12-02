@@ -179,23 +179,25 @@ class Bird(VecTask):
 		#euler angles
 		Q = torch.roll(self.root_states[:, 3:7],1,1)
 		euler_angles = matrix_to_euler_angles( quaternion_to_matrix(Q), 'ZYX' )
-		self.obs_buf = torch.cat((self.root_linvel, euler_angles, self.dof_pos, self.dof_vel), dim=1)
+		self.obs_buf = torch.cat((self.root_linvel/10, euler_angles/(torch.pi), self.dof_pos, self.dof_vel), dim=1)
 
 		return self.obs_buf
 
 	def compute_reward(self):
-		base_vel = self.obs_buf[..., 0:3] 
-		base_rot = self.obs_buf[..., 3:6] 
+		
+		psi_fail = torch.abs(self.psi) > 0.17 							#psi fail condition
+		psi_reset = torch.where(psi_fail, torch.ones_like(psi_fail), torch.zeros_like(psi_fail))
+		psi_reset = torch.sum(psi_reset, dim=2) 				    #looking for any fail conditions among the station points
+		psi_reset = torch.sum(psi_reset, dim=0)						#looking for any fail conditions among the two wings		
+		# print(psi_reset.shape)	
 
-		speed_reward = base_vel[:,1]**2 -base_vel[:,0]**2 -base_vel[:,2]**2
-		rot_reward = -base_rot[:,1]**2 -base_rot[:,0]**2 -base_rot[:,2]**2
-		psi_reward =  -torch.sum(torch.mean(self.psi,dim=2)**2, dim=0)
-
-		self.rew_buf[:], self.reset_buf[:] = compute_bird_reward(	   self.obs_buf, 
-																		self.psi,
-																		self.reset_buf,
-																		self.progress_buf,
-																		self.max_episode_length)
+		self.rew_buf, self.reset_buf = compute_bird_reward(	self.obs_buf, 
+															self.psi,
+															self.reset_buf,
+															self.progress_buf,
+															self.max_episode_length)
+		self.reset_buf = self.reset_buf | psi_reset
+		print(self.reset_buf)
 		# print(compute_bird_reward(self.obs_buf, self.reset_buf, self.progress_buf, self.max_episode_length))
 
 	def ClCd_model(self, alpha):
@@ -551,8 +553,10 @@ class Bird(VecTask):
 		# Turning force distributions (lift + drag) into single forces and torques that act on each wing
 		# Sum forces, apply to COM
 		forces_sum = torch.sum(self.F_global, dim=2)
-		# print("Sum forces: ", forces_sum[0,:])
-
+		forces_sum = torch.cat((torch.zeros(self.num_envs, 3, 3, device=self.device), forces_sum), dim=1)
+		forces_sum = torch.nan_to_num(forces_sum)
+		# print("Sum forces: ", forces_sum)
+		
 		# Calculate torque contribution from each force on each node
 
 		# Get vector from COM to node
@@ -563,6 +567,8 @@ class Bird(VecTask):
 		torques = torch.cross(r_COM_to_node, self.F_global, dim=3)
 		# Sum torques, apply to COM
 		torques_sum = torch.sum(torques, dim=2)
+		torques_sum = torch.cat((torch.zeros(self.num_envs, 3, 3, device=self.device), torques_sum), dim=1)
+		torques_sum = torch.nan_to_num(torques_sum)
 
 		# Assign these forces and torques to the selfforces/torques defined up top, in the 3rd and 4th rigid bodies (the wings)
 
@@ -575,10 +581,16 @@ class Bird(VecTask):
 
 	def pre_physics_step(self, actions):
 		# time.sleep(0.05)
-		indices = to_torch([0,1], 
-							dtype=torch.int32, 
-							device=self.device).repeat((self.num_envs, 1))
+		# indices = to_torch([0,1], 
+		# 					dtype=torch.int32, 
+		# 					device=self.device).repeat((self.num_envs, 1))
 
+		# apply upward force to one wing
+		# if self.t < 50:
+		# 	self.forces[:,:,:] = 0
+		# 	self.torques[:,:,:] = 0
+		# 	self.forces[:,0,1] = -10
+		# 	# self.forc
 		# apply upward force to one wing
 		# if self.t < 50:
 		# 	self.forces[:,:,:] = 0
@@ -593,6 +605,7 @@ class Bird(VecTask):
 		# 	self.forces[:,:,:] = 0
 		# 	self.torques[:,:,:] = 0
 		# if self.t > 100:
+			# self.root_linvel[:,1] = -1e-3 #<--- 
 			# self.root_linvel[:,1] = -1e-3 #<--- this is how you set HoG control!
 			# self.root_linvel[:,0] = 0 #<--- this is how you set HoG control!
 			# self.root_angvel[:,:] = 0
@@ -623,8 +636,9 @@ class Bird(VecTask):
 		# lwing_handle, self.lr_nodes, self.ldT, self.laux_data_pack = self.bemt2("left")
 		# rwing_handle, self.rr_nodes, self.rdT, self.raux_data_pack = self.bemt2("right")
 		##################################### LIFTING LINE ###################################################
-		self.wing_forces, self.wing_torques, self.wing_CoMs, self.psi = self.lifting_line()
-
+		self.forces, self.torques, self.wing_CoMs, self.psi = self.lifting_line()
+		print(self.forces)
+		print(self.torques)
 		# print(self.wing_forces)
 
 		# if self.t == 110:
@@ -643,7 +657,6 @@ class Bird(VecTask):
 		# 	# dT = None
 
 		##############################################################################################
-
 		# print("APPLYING FORCES")
 		self.gym.apply_rigid_body_force_tensors(self.sim, gymtorch.unwrap_tensor(self.forces), 
 															gymtorch.unwrap_tensor(self.torques), 
@@ -662,18 +675,18 @@ class Bird(VecTask):
 			self.starts = self.wing_CoMs
 			ends_test = torch.zeros_like(self.starts)
 			ends_test[:,:,2] = 1
-			self.ends = self.starts + self.wing_forces
+			# self.ends = self.starts + self.forces
 			# self.ends = self.starts + ends_test
 
 			# print(self.ends)
-			verts_all = torch.stack([self.starts, self.ends], dim=2)
+			# verts_all = torch.stack([self.starts, self.ends], dim=2)
 
-			verts = verts_all[0,:,:]
-			verts = torch.unsqueeze(verts,dim=0).cpu().numpy()			
-			colors = np.zeros((4, 3), dtype=np.float32)
-			colors[..., 0] = 1.0
-			self.gym.clear_lines(self.viewer)
-			self.gym.add_lines(self.viewer, None, 20, verts, colors)
+			# verts = verts_all[0,:,:]
+			# verts = torch.unsqueeze(verts,dim=0).cpu().numpy()			
+			# colors = np.zeros((4, 3), dtype=np.float32)
+			# colors[..., 0] = 1.0
+			# self.gym.clear_lines(self.viewer)
+			# self.gym.add_lines(self.viewer, None, 20, verts, colors)
 
 		
 		self.compute_observations()
@@ -703,12 +716,12 @@ class Bird(VecTask):
 		root_angvel_update = torch.zeros((len(env_ids), 3), device=self.device)
 
 		# SET INIT HoG CONTROL HERE!!! #
-		root_linvel_update[:,1] = -0.1
+		root_linvel_update[:,1] = -1.0
 
-		self.root_pos[env_ids, :] = root_pos_update
-		self.root_rot[env_ids, :] = root_rot_update
-		self.root_linvel[env_ids, :] = root_linvel_update
-		self.root_angvel[env_ids, :] = root_angvel_update
+		self.root_pos[env_ids, :] = root_pos_update[env_ids, :]
+		self.root_rot[env_ids, :] = root_rot_update[env_ids, :]
+		self.root_linvel[env_ids, :] = root_linvel_update[env_ids, :]
+		self.root_angvel[env_ids, :] = root_angvel_update[env_ids, :]
 		self.gym.set_actor_root_state_tensor_indexed(self.sim,
 											  gymtorch.unwrap_tensor(self.root_states),
 											  gymtorch.unwrap_tensor(env_ids_int32), len(env_ids_int32))
@@ -727,13 +740,24 @@ def compute_bird_reward(obs_buf, psi, reset_buf, progress_buf, max_episode_lengt
 	base_vel = obs_buf[..., 0:3] 
 	base_rot = obs_buf[..., 3:6] 
 
-	speed_reward = base_vel[:,1]**2 -base_vel[:,0]**2 -base_vel[:,2]**2
-	rot_reward = -base_rot[:,1]**2 -base_rot[:,0]**2 -base_rot[:,2]**2
-	psi_reward =  -torch.sum(torch.mean(psi,dim=2)**2, dim=0)
+	speed_reward = torch.norm(base_vel, dim=1)/10
+	# speed_reward = base_vel[:,1]**2 -base_vel[:,0]**2 -base_vel[:,2]**2
+	# rot_reward = -base_rot[:,1]**2 -base_rot[:,0]**2 -base_rot[:,2]**2
+	# psi_reward =  -torch.sum(torch.mean(psi,dim=2)**2, dim=0)
+
+	# psi_fail = torch.abs(psi) > 0.17 							#psi fail condition
+	# psi_reset = torch.where(psi_fail, torch.ones_like(psi_fail), torch.zeros_like(psi_fail))
+	# psi_reset = torch.squeeze(torch.sum(psi_reset, dim=2)) 				    #looking for any fail conditions among the station points
+	# psi_reset = torch.squeeze(torch.sum(psi_reset, dim=0))						#looking for any fail conditions among the two wings		
+
 	
 
-	reward = speed_reward + rot_reward + psi_reward
+
+	# reward = speed_reward + rot_reward + psi_reward
+	reward = speed_reward
 	# # resets due to episode length
-	reset = torch.where(progress_buf >= max_episode_length - 1, torch.ones_like(reset_buf), reset_buf)
+	time_out = torch.where(progress_buf >= max_episode_length - 1, torch.ones_like(reset_buf), reset_buf)
+	# reset = time_out | psi_reset
+	reset = time_out
 
 	return reward, reset

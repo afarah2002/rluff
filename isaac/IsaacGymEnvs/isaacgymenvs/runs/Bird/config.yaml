@@ -4,13 +4,13 @@ task:
   env:
     numEnvs: ${resolve_default:1024,${...num_envs}}
     envSpacing: 2.5
-    maxEpisodeLength: 2000
+    maxEpisodeLength: 1000
     enableDebugVis: false
     clipObservations: 5.0
     clipActions: 10.0
     enableCameraSensors: false
   sim:
-    dt: 0.01
+    dt: 0.001
     substeps: 2
     up_axis: z
     use_gpu_pipeline: ${eq:${...pipeline},"gpu"}
@@ -93,7 +93,7 @@ train:
       truncate_grads: true
       e_clip: 0.2
       horizon_length: 16
-      minibatch_size: 4096
+      minibatch_size: 4
       mini_epochs: 8
       critic_coef: 2
       clip_value: true
@@ -101,10 +101,10 @@ train:
       bounds_loss_coef: 0.0001
 task_name: ${task.name}
 experiment: ''
-num_envs: ''
+num_envs: 4
 seed: 42
 torch_deterministic: false
-max_iterations: ''
+max_iterations: 1000000
 physics_engine: physx
 pipeline: gpu
 sim_device: cuda:0
