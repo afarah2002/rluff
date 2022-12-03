@@ -156,20 +156,7 @@ class Bird(VecTask):
 		self.rwing_pos = torch.zeros_like(self.rwing_local_pos)
 		self.rwing_rot = torch.zeros_like(self.rwing_local_rot)
 
-	# def compute_observations(self, env_ids=None):
 
-
-		# left_wing_pos_G = self.rb_pos[:,self.body_dict["left"],:]
-		# right_wing_pos_G = self.rb_pos[:,self.body_dict["right"],:]
-
-		# left_wing_ori = self.rb_ori[:,self.body_dict["left"],:]
-		# right_wing_ori = self.rb_ori[:,self.body_dict["right"],:]
-
-		# self.lwing_pos = self.rb_pos[:,self.lwing_handle,:]
-		# self.rwing_pos = self.rb_pos[:,self.rwing_handle,:]
-
-		# self.lwing_rot = self.rb_rot[:,self.rwing_handle,:]
-		# self.rwing_rot = self.rb_rot[:,self.rwing_handle,:]
 
 	def compute_observations(self):
 		self.gym.refresh_dof_state_tensor(self.sim)
@@ -185,20 +172,17 @@ class Bird(VecTask):
 
 	def compute_reward(self):
 		
-		psi_fail = torch.abs(self.psi) > 0.17 							#psi fail condition
-		psi_reset = torch.where(psi_fail, torch.ones_like(psi_fail), torch.zeros_like(psi_fail))
-		psi_reset = torch.sum(psi_reset, dim=2) 				    #looking for any fail conditions among the station points
-		psi_reset = torch.sum(psi_reset, dim=0)						#looking for any fail conditions among the two wings		
+		# psi_fail = torch.abs(self.psi) > 0.17 							#psi fail condition
+		# psi_reset = torch.where(psi_fail, torch.ones_like(psi_fail), torch.zeros_like(psi_fail))
+		# psi_reset = torch.sum(psi_reset, dim=2) 				    #looking for any fail conditions among the station points
+		# psi_reset = torch.sum(psi_reset, dim=0)						#looking for any fail conditions among the two wings		
 		# print(psi_reset.shape)	
 
-		self.rew_buf, self.reset_buf = compute_bird_reward(	self.obs_buf, 
+		self.rew_buf, self.reset_buf = compute_bird_reward(self.obs_buf, 
 															self.psi,
 															self.reset_buf,
 															self.progress_buf,
 															self.max_episode_length)
-		self.reset_buf = self.reset_buf | psi_reset
-		print(self.reset_buf)
-		# print(compute_bird_reward(self.obs_buf, self.reset_buf, self.progress_buf, self.max_episode_length))
 
 	def ClCd_model(self, alpha):
 		# Here you would init training for clcd model
@@ -626,9 +610,10 @@ class Bird(VecTask):
 
 		# _actions = [-0.1,0,0]
 		# actions = to_torch(_actions, 
-		# 					dtype=torch.float, 
-		# 					device=self.device).repeat((self.num_envs, 1))
+		#  					dtype=torch.float, 
+		#  					device=self.device).repeat((self.num_envs, 1))
 		# print(actions)
+
 		self.actions = actions.clone().to(self.device)
 		self.gym.set_dof_position_target_tensor(self.sim, gymtorch.unwrap_tensor(self.actions))
 
@@ -637,9 +622,6 @@ class Bird(VecTask):
 		# rwing_handle, self.rr_nodes, self.rdT, self.raux_data_pack = self.bemt2("right")
 		##################################### LIFTING LINE ###################################################
 		self.forces, self.torques, self.wing_CoMs, self.psi = self.lifting_line()
-		print(self.forces)
-		print(self.torques)
-		# print(self.wing_forces)
 
 		# if self.t == 110:
 		# 	exit()
@@ -658,6 +640,7 @@ class Bird(VecTask):
 
 		##############################################################################################
 		# print("APPLYING FORCES")
+
 		self.gym.apply_rigid_body_force_tensors(self.sim, gymtorch.unwrap_tensor(self.forces), 
 															gymtorch.unwrap_tensor(self.torques), 
 															gymapi.ENV_SPACE)
@@ -665,6 +648,7 @@ class Bird(VecTask):
 	
 
 	def post_physics_step(self):
+		print('~~~~~~~~~~~~~~~~~~~~'		)
 		self.progress_buf += 1
 		self.t += 1
 		env_ids = self.reset_buf.nonzero(as_tuple=False).squeeze(-1)
@@ -688,19 +672,58 @@ class Bird(VecTask):
 			# self.gym.clear_lines(self.viewer)
 			# self.gym.add_lines(self.viewer, None, 20, verts, colors)
 
-		
+		# print('Reset buff')
+		# print(self.reset_buf)
+		# print('Obs')
+		# print(self.obs_buf)
+		# print('Actions')
+		# print(self.actions)
+		# print('DOF pos')
+		# print(self.dof_pos)
+		# print('DOF vels')
+		# print(self.dof_vel)
+		# print('Psi')
+		# print(self.psi)
+		# print('forces')
+		# print(self.forces)
+		# print('torques')
+		# print(self.torques)
+
+
 		self.compute_observations()
 		self.compute_reward()
+		
+		
+		print('Reset buff')
+		print(self.reset_buf)
+		print('Obs')
+		print(self.obs_buf)
+		print('Actions')
+		print(self.actions)
+		print('DOF pos')
+		print(self.dof_pos)
+		print('DOF vels')
+		print(self.dof_vel)
+		print('Psi')
+		print(self.psi)
+		print('forces')
+		print(self.forces)
+		print('torques')
+		print(self.torques)
+
+
 
 	def reset_idx(self, env_ids):
 		# thank u @Tbarkin121 !!
 		positions = torch.zeros((len(env_ids), self.num_dof), device=self.device)
-		velocities = 0.0 * (torch.rand((len(env_ids), self.num_dof), device=self.device) - 0.5)
+		velocities = torch.zeros((len(env_ids), self.num_dof), device=self.device)
 
 		self.dof_pos[env_ids, :] = positions[:]
 		self.dof_vel[env_ids, :] = velocities[:]
 
 		env_ids_int32 = env_ids.to(dtype=torch.int32)
+		# print('env ids')
+		# print(env_ids_int32)
 		self.gym.set_dof_state_tensor_indexed(self.sim,
 											  gymtorch.unwrap_tensor(self.dof_state),
 											  gymtorch.unwrap_tensor(env_ids_int32), len(env_ids_int32))
@@ -708,9 +731,7 @@ class Bird(VecTask):
 		root_pos_update = torch.zeros((len(env_ids), 3), device=self.device)
 		root_pos_update[:,2] = 0.3
 
-		rand_floats = torch_rand_float(-1.0, 1.0, (len(env_ids), 4), device=self.device)
-
-		root_rot_update = to_torch([0,0,0,1], device=self.device).repeat((self.num_envs, 1))
+		root_rot_update = to_torch([0,0,0,1], device=self.device).repeat((len(env_ids), 1))
 
 		root_linvel_update = torch.zeros((len(env_ids), 3), device=self.device)
 		root_angvel_update = torch.zeros((len(env_ids), 3), device=self.device)
@@ -718,16 +739,18 @@ class Bird(VecTask):
 		# SET INIT HoG CONTROL HERE!!! #
 		root_linvel_update[:,1] = -1.0
 
-		self.root_pos[env_ids, :] = root_pos_update[env_ids, :]
-		self.root_rot[env_ids, :] = root_rot_update[env_ids, :]
-		self.root_linvel[env_ids, :] = root_linvel_update[env_ids, :]
-		self.root_angvel[env_ids, :] = root_angvel_update[env_ids, :]
+		self.root_pos[env_ids, :] = root_pos_update
+		self.root_rot[env_ids, :] = root_rot_update
+		self.root_linvel[env_ids, :] = root_linvel_update
+		self.root_angvel[env_ids, :] = root_angvel_update
 		self.gym.set_actor_root_state_tensor_indexed(self.sim,
 											  gymtorch.unwrap_tensor(self.root_states),
 											  gymtorch.unwrap_tensor(env_ids_int32), len(env_ids_int32))
 
 		self.reset_buf[env_ids] = 0
 		self.progress_buf[env_ids] = 0
+
+
 
 #####################################################################
 ###=========================jit functions=========================###
@@ -740,15 +763,15 @@ def compute_bird_reward(obs_buf, psi, reset_buf, progress_buf, max_episode_lengt
 	base_vel = obs_buf[..., 0:3] 
 	base_rot = obs_buf[..., 3:6] 
 
-	speed_reward = torch.norm(base_vel, dim=1)/10
-	# speed_reward = base_vel[:,1]**2 -base_vel[:,0]**2 -base_vel[:,2]**2
-	# rot_reward = -base_rot[:,1]**2 -base_rot[:,0]**2 -base_rot[:,2]**2
-	# psi_reward =  -torch.sum(torch.mean(psi,dim=2)**2, dim=0)
+	# speed_reward = torch.norm(base_vel, dim=1)/10
+	speed_reward = base_vel[:,1]**2 -base_vel[:,0]**2 -base_vel[:,2]**2
+	rot_reward = -base_rot[:,1]**2 -base_rot[:,0]**2 -base_rot[:,2]**2
+	psi_reward =  -torch.sum(torch.mean(psi,dim=2)**2, dim=0)
 
-	# psi_fail = torch.abs(psi) > 0.17 							#psi fail condition
-	# psi_reset = torch.where(psi_fail, torch.ones_like(psi_fail), torch.zeros_like(psi_fail))
-	# psi_reset = torch.squeeze(torch.sum(psi_reset, dim=2)) 				    #looking for any fail conditions among the station points
-	# psi_reset = torch.squeeze(torch.sum(psi_reset, dim=0))						#looking for any fail conditions among the two wings		
+	psi_fail = torch.abs(psi) > 1000 # 0.17 							#psi fail condition
+	psi_reset = torch.where(psi_fail, torch.ones_like(psi_fail), torch.zeros_like(psi_fail))
+	psi_reset = torch.squeeze(torch.sum(psi_reset, dim=2)) 				    #looking for any fail conditions among the station points
+	psi_reset = torch.squeeze(torch.sum(psi_reset, dim=0))						#looking for any fail conditions among the two wings		
 
 	
 
@@ -757,7 +780,6 @@ def compute_bird_reward(obs_buf, psi, reset_buf, progress_buf, max_episode_lengt
 	reward = speed_reward
 	# # resets due to episode length
 	time_out = torch.where(progress_buf >= max_episode_length - 1, torch.ones_like(reset_buf), reset_buf)
-	# reset = time_out | psi_reset
-	reset = time_out
-
+	reset = time_out | psi_reset
+	# reset = time_out
 	return reward, reset

@@ -2,9 +2,9 @@ task:
   name: Bird
   physics_engine: ${..physics_engine}
   env:
-    numEnvs: ${resolve_default:1024,${...num_envs}}
+    numEnvs: ${resolve_default:2,${...num_envs}}
     envSpacing: 2.5
-    maxEpisodeLength: 1000
+    maxEpisodeLength: 10000
     enableDebugVis: false
     clipObservations: 5.0
     clipActions: 10.0
@@ -93,7 +93,7 @@ train:
       truncate_grads: true
       e_clip: 0.2
       horizon_length: 16
-      minibatch_size: 4
+      minibatch_size: 2048
       mini_epochs: 8
       critic_coef: 2
       clip_value: true
@@ -101,10 +101,10 @@ train:
       bounds_loss_coef: 0.0001
 task_name: ${task.name}
 experiment: ''
-num_envs: 4
+num_envs: 2
 seed: 42
 torch_deterministic: false
-max_iterations: 1000000
+max_iterations: ''
 physics_engine: physx
 pipeline: gpu
 sim_device: cuda:0
@@ -113,8 +113,8 @@ graphics_device_id: 0
 num_threads: 4
 solver_type: 1
 num_subscenes: 4
-test: false
-checkpoint: ''
+test: true
+checkpoint: /home/tyler/MachineLearning/git/rluff/isaac/IsaacGymEnvs/isaacgymenvs/runs/testy/nn/testy.pth
 multi_gpu: false
 wandb_activate: false
 wandb_group: ''
@@ -125,4 +125,4 @@ capture_video: false
 capture_video_freq: 1464
 capture_video_len: 100
 force_render: true
-headless: true
+headless: false
