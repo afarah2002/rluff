@@ -63,6 +63,10 @@ class Bird(VecTask):
 		self.gym.viewer_camera_look_at(self.viewer, None, cam_pos, cam_target)
 
 		self.t = 0
+		self.t_max = 300 # kill here
+
+		# temporary analyis of LL dist
+		self.LiftDist_buffer = torch.zeros((self.t_max, self.num_envs*2, self.N, 1), dtype=torch.float32, device=self.device, requires_grad=False)
 
 		self.lifting_line_setup()
 
@@ -430,16 +434,13 @@ class Bird(VecTask):
 			r_nodes = torch.matmul(rot_mat, R_nodes.transpose(1,2)).transpose(1,2) \
 						+ torch.tile(wing_pos, (1,self.N)).reshape(self.num_envs, self.N, 3)
 
-
-
 			v_nodes_about_link_origin = torch.cross(torch.tile(wing_angvel, (1,self.N)).reshape(self.num_envs, self.N, 3), 
-												r_nodes, dim=2)
+												torch.matmul(rot_mat, R_nodes.transpose(1,2)).transpose(1,2), dim=2)
 
 			v_nodes = torch.add(torch.tile(wing_linvel, (1,self.N)).reshape(self.num_envs, self.N, 3),
 								v_nodes_about_link_origin)
 
 			v_flow_3D_global_wing = -v_nodes
-
 
 			v_flow_3D_local = torch.matmul(torch.inverse(rot_mat), v_flow_3D_global_wing.transpose(1,2)).transpose(1,2)
 
@@ -475,7 +476,6 @@ class Bird(VecTask):
 		self.vec2 = psi.transpose(1,2)
 		v_flow_2D_local_mag = torch.stack([v_flow_2D_local_mag_wing_1, v_flow_2D_local_mag_wing_2]).transpose(1,2)
 		v_flow_3D_global = torch.stack([v_flow_3D_global_wing_1, v_flow_3D_global_wing_2])
-		# print(v_flow_3D_global)
 		r_nodes = torch.stack([nodes_wing_1, nodes_wing_2]).transpose(0,1)
 
 		###########################################################################################################
@@ -487,15 +487,18 @@ class Bird(VecTask):
 		self.RHS = RHS
 		A = torch.linalg.solve(self.mat1,RHS)   
 		# A = torch.matmul(mat1inv,RHS)  
-		# each col in above will have the "A" coeffs for the mth wing 
+		# each col in above will have the "A" coeffs for the mth wing
+		# print(torch.matmul(self.mat2,A)) 
 		Gamma = torch.matmul(self.mat2,A)*v_flow_2D_local_mag
 		LiftDist = Gamma*v_flow_2D_local_mag*self.rho
+
 
 
 		# exec_time = time.perf_counter() - now; 
 		Alpha_i = torch.matmul(self.mat3, A * self.vec3) 
 		DragDist = v_flow_2D_local_mag*Gamma*Alpha_i*self.rho
 		DragDist = DragDist.type(torch.float)
+
 
 		########### LIFT AND DRAG UNIT VECTORS
 		#  LIFT = global flow X global span 
@@ -504,21 +507,44 @@ class Bird(VecTask):
 
 		Direction_Of_Lift = torch.cross(spanwise_vector, v_flow_3D_global, dim=3)
 		Direction_Of_Lift[1,:,:,2] *= -1
-		# Direction_Of_Lift[1,:,:,2] *= -1
-
-
 		Direction_Of_Lift = torch.div(Direction_Of_Lift, torch.linalg.norm(Direction_Of_Lift, axis=3).reshape(2, self.num_envs, self.N, 1))
 		
 		#  DRAG = UNIT vector of 2d global flow
 		Direction_Of_Drag = torch.div(v_flow_3D_global, torch.linalg.norm(v_flow_3D_global, axis=3).reshape(2, self.num_envs, self.N, 1))
 		###########
 
+		# print(Direction_Of_Lift)
+
 		# F_global = Direction_Of_Lift*LiftDist + Wind_apparent_global_normalized*DragDist
 		LD1 = torch.permute(LiftDist, (2,0,1))*self.force_scale
 		LiftDist_ = torch.reshape(LD1, (self.W*self.M,self.N,1))
 
+		# print(LiftDist_)
+		
+		# save lift dist to buffer
+
+		if self.t < self.t_max:
+			self.LiftDist_buffer[self.t,:] = LiftDist_
+
+		if self.t == self.t_max:
+			# save lift dist buffer to folder
+			path = "/home/afarah/Documents/UML/willis/rluff/isaacflapper3/fun_data"
+			# kill
+			filename = "/ll_dist_data.pt"
+			torch.save(self.LiftDist_buffer, path+filename)
+			# exit()
+
 		DD1 = torch.permute(DragDist, (2,0,1))*self.force_scale
 		DragDist_ = torch.reshape(DD1, (self.W*self.M,self.N,1))
+
+		# Clamp SCALARS, not vector comps!! Clamp the lift and drag dist
+		lift_min = -0.1
+		lift_max = 0.1
+		drag_min = -0.1
+		drag_max = 0.1
+
+		LiftDist_ = torch.clamp(LiftDist_, lift_min, lift_max)
+		DragDist_ = torch.clamp(DragDist_, drag_min, drag_max)
 
 		DOL1 = torch.permute(Direction_Of_Lift, (0,2,1,3))
 		DOD1 = torch.permute(Direction_Of_Drag, (0,2,1,3))
@@ -592,10 +618,11 @@ class Bird(VecTask):
 		# 	print(self.root_states)
 		# 	self.gym.set_actor_root_state_tensor(self.sim, gymtorch.unwrap_tensor(self.root_states))
 
-		_actions = [-0.2*np.sin(10*self.t*0.01 + np.pi/4), 0.1*np.cos(5*self.t*0.01), 0.1*np.cos(5*self.t*0.01)]
+		_actions = [-0.1*np.sin(0.02*self.t), 0.1*np.cos(0.02*self.t), 0.1*np.cos(0.02*self.t)]
 		# _actions = [0, 1*np.sin(10*self.t*0.01), 1*np.sin(10*self.t*0.01)]
+		# _actions = np.random.uniform(low=-1., high=1., size=(3,))
 		# _actions = [0,-1,-1]
-		# _actions = [-1.*np.sin(10*self.t*0.01), 0, 0]
+		# _actions = [-0.1*np.sin(10*self.t*0.01), 0, 0]
 
 		# _actions = [-0.1,0,0]
 		actions = to_torch(_actions, 
@@ -616,8 +643,8 @@ class Bird(VecTask):
 		# if self.t == 110:
 		# 	exit()
 
-		# self.forces[:,3:,:] = self.wing_forces
-		# self.torques[:,3:,:] = self.wing_torques
+		self.forces[:,3:,:] = torch.nan_to_num(self.wing_forces)
+		# self.torques[:,3:,:] = torch.nan_to_num(self.wing_torques)
 
 		# print(self.forces)
 
@@ -629,13 +656,17 @@ class Bird(VecTask):
 		# 	# dT = None
 
 		##############################################################################################
+		# print("APPLYING FORCES")
+		print(self.root_pos)
 
-		print("APPLYING FORCES")
-		self.gym.apply_rigid_body_force_tensors(self.sim, gymtorch.unwrap_tensor(self.forces), 
-															gymtorch.unwrap_tensor(self.torques), 
-															gymapi.ENV_SPACE)
+		if self.t > 2:
+			self.gym.apply_rigid_body_force_tensors(self.sim, gymtorch.unwrap_tensor(self.forces), 
+																gymtorch.unwrap_tensor(self.torques), 
+																gymapi.ENV_SPACE)
 
-		print(self.root_linvel)
+		# print(self.forces)
+
+		# print(self.root_linvel)
 
 	def post_physics_step(self):
 		self.progress_buf += 1
@@ -648,7 +679,7 @@ class Bird(VecTask):
 			self.starts = self.wing_CoMs
 			ends_test = torch.zeros_like(self.starts)
 			ends_test[:,:,2] = 1
-			self.ends = self.starts + self.wing_forces
+			self.ends = self.starts + 0.1*self.wing_forces
 			# self.ends = self.starts + ends_test
 
 			# print(self.ends)
@@ -689,7 +720,7 @@ class Bird(VecTask):
 		root_angvel_update = torch.zeros((len(env_ids), 3), device=self.device)
 
 		# SET INIT HoG CONTROL HERE!!! #
-		root_linvel_update[:,1] = -0.1
+		root_linvel_update[:,1] = -1.
 
 		self.root_pos[env_ids, :] = root_pos_update
 		self.root_rot[env_ids, :] = root_rot_update
