@@ -169,7 +169,8 @@ class Bird(VecTask):
 		base_quat = self.root_states[:, 3:7]
 		lin_vel_scale = (1/10)
 		ang_vel_scale = (1/10)
-		base_lin_vel = quat_rotate_inverse(base_quat, self.root_linvel) * lin_vel_scale
+		# base_lin_vel = quat_rotate_inverse(base_quat, self.root_linvel) * lin_vel_scale
+		base_lin_vel = self.root_linvel
 		base_ang_vel = quat_rotate_inverse(base_quat, self.root_angvel) * ang_vel_scale
 		
 		#linvel
@@ -494,6 +495,8 @@ class Bird(VecTask):
 
 		self.compute_observations()
 		self.compute_reward()
+		# print('Env 1 Euler Ang:')
+		# print(self.obs_buf[0, 6:9])
 		# print('REWARD')
 		# print(self.rew_buf)
 
@@ -583,12 +586,12 @@ def compute_bird_reward(obs_buf, psi, reset_buf, progress_buf, max_episode_lengt
 	# type: (Tensor, Tensor, Tensor, Tensor, float) -> Tuple[Tensor, Tensor]
 
 	# Velocity rewards
-	base_vel = obs_buf[..., 0:3]/100
-	base_rot = obs_buf[..., 3:6] 
+	base_vel = obs_buf[:, 0:3]/10
+	base_rot = obs_buf[:, 6:9] 
 
-	speed_reward = torch.norm(base_vel, dim=1)
-	# speed_reward = base_vel[:,1]**2 -base_vel[:,0]**2 -base_vel[:,2]**2
-	rot_reward = -base_rot[:,1]**2 -base_rot[:,0]**2 -base_rot[:,2]**2
+	# speed_reward = torch.norm(base_vel, dim=1)
+	speed_reward = base_vel[:,1]**2 -base_vel[:,0]**2 -base_vel[:,2]**2
+	rot_reward = -base_rot[:,0]**2 -base_rot[:,1]**2 -base_rot[:,2]**2
 	psi_reward =  -torch.sum(torch.mean(psi,dim=2)**2, dim=0)
 
 	psi_fail = torch.abs(psi) >  1.0													#psi fail condition
@@ -600,7 +603,7 @@ def compute_bird_reward(obs_buf, psi, reset_buf, progress_buf, max_episode_lengt
 	# reward = speed_reward + rot_reward + psi_reward
 	alive_reward = torch.ones_like(speed_reward, dtype=torch.float)
 
-	reward = speed_reward
+	reward = speed_reward + rot_reward + psi_reward
 	# reward = torch.where(psi_reset>0, torch.zeros_like(reward, dtype=torch.float), reward)
 	# # resets due to episode length
 	time_out = progress_buf >= max_episode_length - 1  # no terminal reward for time-outs
