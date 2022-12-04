@@ -2,7 +2,7 @@ import math
 import numpy as np
 import os
 import torch
-from pytorch3d.transforms import quaternion_to_matrix
+from pytorch3d.transforms import quaternion_to_matrix, matrix_to_euler_angles
 import sys
 import xml.etree.ElementTree as ET
 import time
@@ -63,10 +63,15 @@ class Bird(VecTask):
 		self.gym.viewer_camera_look_at(self.viewer, None, cam_pos, cam_target)
 
 		self.t = 0
-		self.t_max = 300 # kill here
+		self.t_max = 1000 # kill here
 
-		# temporary analyis of LL dist
+		# temporary analysis 
 		self.LiftDist_buffer = torch.zeros((self.t_max, self.num_envs*2, self.N, 1), dtype=torch.float32, device=self.device, requires_grad=False)
+		self.DOFstates_buffer = torch.zeros((self.t_max, self.num_envs, self.num_dof, 2), dtype=torch.float32, device=self.device, requires_grad=False)
+		self.Rootstates_buffer = torch.zeros((self.t_max, self.num_envs, 1, 13), dtype=torch.float32, device=self.device, requires_grad=False)
+		self.WingCOM_buffer = torch.zeros((self.t_max, self.num_envs, 2, 3), dtype=torch.float32, device=self.device, requires_grad=False)
+
+		self.data_save_dict = {} # Key = data name: Value = [data tensor, filename]
 
 		self.lifting_line_setup()
 
@@ -158,29 +163,18 @@ class Bird(VecTask):
 		self.rwing_pos = torch.zeros_like(self.rwing_local_pos)
 		self.rwing_rot = torch.zeros_like(self.rwing_local_rot)
 
-	# def compute_observations(self, env_ids=None):
-
-
-		# left_wing_pos_G = self.rb_pos[:,self.body_dict["left"],:]
-		# right_wing_pos_G = self.rb_pos[:,self.body_dict["right"],:]
-
-		# left_wing_ori = self.rb_ori[:,self.body_dict["left"],:]
-		# right_wing_ori = self.rb_ori[:,self.body_dict["right"],:]
-
-		# self.lwing_pos = self.rb_pos[:,self.lwing_handle,:]
-		# self.rwing_pos = self.rb_pos[:,self.rwing_handle,:]
-
-		# self.lwing_rot = self.rb_rot[:,self.rwing_handle,:]
-		# self.rwing_rot = self.rb_rot[:,self.rwing_handle,:]
-
 	def compute_observations(self):
 		# if env_ids is None:
 		# 	env_ids = np.arange(self.num_envs)
 		self.gym.refresh_dof_state_tensor(self.sim)
 		self.gym.refresh_actor_root_state_tensor(self.sim)
 		self.gym.refresh_rigid_body_state_tensor(self.sim)
-		# self.obs_buf = self.root_states.view(self.num_envs, 1, 13)
-		return self.obs_buf
+
+		Q = torch.roll(self.root_states[:,3:7],1,1)
+		euler_angles = matrix_to_euler_angles(quaternion_to_matrix(Q),'ZYX')
+		# self.obs_buf = torch.cat((self.root_linvel, euler_angles/(torch.pi), self.dof_pos, self.dof_vel), dim=1)
+		# print(self.obs_buf.shape)
+		# return self.obs_buf
 
 	def compute_reward(self):
 		self.rew_buf[:], self.reset_buf[:] = compute_bird_reward(self.obs_buf.view(self.num_envs, 13), 
@@ -471,7 +465,6 @@ class Bird(VecTask):
 
 		# stack psis, v 2d local mags
 		psi = torch.stack([psi_wing1, psi_wing2])
-		# print(psi)
 		self.r_wing_COM = torch.stack([COM_wing_1, COM_wing_2]).transpose(0,1)
 		self.vec2 = psi.transpose(1,2)
 		v_flow_2D_local_mag = torch.stack([v_flow_2D_local_mag_wing_1, v_flow_2D_local_mag_wing_2]).transpose(1,2)
@@ -521,21 +514,14 @@ class Bird(VecTask):
 
 		# print(LiftDist_)
 		
-		# save lift dist to buffer
+		# Add lift dist data to data save dict
 
 		if self.t < self.t_max:
 			self.LiftDist_buffer[self.t,:] = LiftDist_
-
-		if self.t == self.t_max:
-			# save lift dist buffer to folder
-			path = "/home/afarah/Documents/UML/willis/rluff/isaacflapper3/fun_data"
-			# kill
-			filename = "/ll_dist_data.pt"
-			torch.save(self.LiftDist_buffer, path+filename)
-			# exit()
+		self.data_save_dict["LiftDist"] = [self.LiftDist_buffer, "/LiftDist.pt"]
 
 		DD1 = torch.permute(DragDist, (2,0,1))*self.force_scale
-		DragDist_ = torch.reshape(DD1, (self.W*self.M,self.N,1))
+		DragDist_ = torch.reshape(DD1, (self.W*self.M,self.N,1)) 
 
 		# Clamp SCALARS, not vector comps!! Clamp the lift and drag dist
 		lift_min = -0.1
@@ -618,13 +604,13 @@ class Bird(VecTask):
 		# 	print(self.root_states)
 		# 	self.gym.set_actor_root_state_tensor(self.sim, gymtorch.unwrap_tensor(self.root_states))
 
-		_actions = [-0.1*np.sin(0.02*self.t), 0.1*np.cos(0.02*self.t), 0.1*np.cos(0.02*self.t)]
+		_actions = [-0.2*np.sin(0.02*self.t), 0.2*np.cos(0.02*self.t), 0.2*np.cos(0.02*self.t)]
 		# _actions = [0, 1*np.sin(10*self.t*0.01), 1*np.sin(10*self.t*0.01)]
 		# _actions = np.random.uniform(low=-1., high=1., size=(3,))
 		# _actions = [0,-1,-1]
 		# _actions = [-0.1*np.sin(10*self.t*0.01), 0, 0]
 
-		# _actions = [-0.1,0,0]
+		# _actions = [-0,0,0]
 		actions = to_torch(_actions, 
 							dtype=torch.float, 
 							device=self.device).repeat((self.num_envs, 1))
@@ -657,16 +643,21 @@ class Bird(VecTask):
 
 		##############################################################################################
 		# print("APPLYING FORCES")
-		print(self.root_pos)
+		# print(self.root_pos)
 
-		if self.t > 2:
-			self.gym.apply_rigid_body_force_tensors(self.sim, gymtorch.unwrap_tensor(self.forces), 
-																gymtorch.unwrap_tensor(self.torques), 
-																gymapi.ENV_SPACE)
+		# if self.t > 2:
+		# 	self.gym.apply_rigid_body_force_tensors(self.sim, gymtorch.unwrap_tensor(self.forces), 
+		# 														gymtorch.unwrap_tensor(self.torques), 
+		# 														gymapi.ENV_SPACE)
 
-		# print(self.forces)
+		if self.t < self.t_max:
+			self.DOFstates_buffer[self.t,:] = self.dof_state.view(self.num_envs, self.num_dof, 2)
+			self.Rootstates_buffer[self.t,:] = self.root_states.view(self.num_envs, 1, 13)
+			self.WingCOM_buffer[self.t,:] = self.wing_CoMs
 
-		# print(self.root_linvel)
+		self.data_save_dict["DOFstates"] = [self.DOFstates_buffer, "/DOFstates.pt"]
+		self.data_save_dict["Rootstates"] = [self.Rootstates_buffer, "/Rootstates.pt"]
+		self.data_save_dict["WingCOMs"] = [self.WingCOM_buffer, "/WingCOMs.pt"]
 
 	def post_physics_step(self):
 		self.progress_buf += 1
@@ -692,6 +683,11 @@ class Bird(VecTask):
 			self.gym.clear_lines(self.viewer)
 			self.gym.add_lines(self.viewer, None, 20, verts, colors)
 
+		# Save data if t = tmax
+		if self.t == self.t_max:
+			self.save_data()
+			exit()
+
 		
 		self.compute_observations()
 		# self.compute_reward()
@@ -710,7 +706,7 @@ class Bird(VecTask):
 											  gymtorch.unwrap_tensor(env_ids_int32), len(env_ids_int32))
 		
 		root_pos_update = torch.zeros((len(env_ids), 3), device=self.device)
-		root_pos_update[:,2] = 0.3
+		root_pos_update[:,2] = 1
 
 		rand_floats = torch_rand_float(-1.0, 1.0, (len(env_ids), 4), device=self.device)
 
@@ -732,6 +728,14 @@ class Bird(VecTask):
 
 		self.reset_buf[env_ids] = 0
 		self.progress_buf[env_ids] = 0
+
+	def save_data(self):
+
+		path = "/home/afarah/Documents/UML/willis/rluff/isaacflapper3/fun_data"
+		for key in self.data_save_dict:
+			print(f"Saving {key}")
+			torch.save(self.data_save_dict[key][0], path+self.data_save_dict[key][1])
+
 
 #####################################################################
 ###=========================jit functions=========================###
