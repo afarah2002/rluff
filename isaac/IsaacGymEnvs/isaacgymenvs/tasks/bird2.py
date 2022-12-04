@@ -18,6 +18,9 @@ class Bird(VecTask):
 
 	def __init__(self, cfg, rl_device, sim_device, graphics_device_id, headless, virtual_screen_capture, force_render):
 
+
+		self.t_max= 0
+		self.t = 0
 		self.cfg = cfg
 		self.max_episode_length = self.cfg["env"]["maxEpisodeLength"]
 		self.debug_viz = self.cfg["env"]["enableDebugVis"]
@@ -62,8 +65,19 @@ class Bird(VecTask):
 		cam_target = gymapi.Vec3(0.0, 0.0, 1.0)
 		self.gym.viewer_camera_look_at(self.viewer, None, cam_pos, cam_target)
 
+
+		# temporary analysis 
+		self.LiftDist_buffer = torch.zeros((self.t_max, self.num_envs*2, self.N, 1), dtype=torch.float32, device=self.device, requires_grad=False)
+		self.DOFstates_buffer = torch.zeros((self.t_max, self.num_envs, self.num_dof, 2), dtype=torch.float32, device=self.device, requires_grad=False)
+		self.Rootstates_buffer = torch.zeros((self.t_max, self.num_envs, 1, 13), dtype=torch.float32, device=self.device, requires_grad=False)
+		self.WingCOM_buffer = torch.zeros((self.t_max, self.num_envs, 2, 3), dtype=torch.float32, device=self.device, requires_grad=False)
+
+		self.data_save_dict = {} # Key = data name: Value = [data tensor, filename]
+
 		self.lifting_line_setup()
 		self.reset_idx(torch.arange(self.num_envs, device=self.device))
+
+
 
 
 	def create_sim(self):
@@ -109,8 +123,11 @@ class Bird(VecTask):
 			env_ptr = self.gym.create_env(
 				self.sim, lower, upper, num_per_row
 			)
+
 			bird_handle = self.gym.create_actor(env_ptr, bird_asset, pose, "bird", i, 1, 0)
 			dof_props = self.gym.get_actor_dof_properties(env_ptr, bird_handle)
+			dof_props['effort'][0] = 0.1
+			dof_props['effort'][1:3] = 1.0
 
 			self.gym.set_actor_dof_properties(env_ptr, bird_handle, dof_props)
 
@@ -187,7 +204,9 @@ class Bird(VecTask):
 															self.psi,
 															self.reset_buf,
 															self.progress_buf,
-															self.max_episode_length)
+															self.max_episode_length,
+															self.root_pos,
+															self.forces)
 
 		# print(self.rew_buf)
 		
@@ -366,19 +385,33 @@ class Bird(VecTask):
 		A = torch.linalg.solve(self.mat1,RHS)   
 		# A = torch.matmul(mat1inv,RHS)  
 		# each col in above will have the "A" coeffs for the mth wing 
-		Gamma = torch.matmul(self.mat2,A)*v_flow_2D_local_mag
-		LiftDist = Gamma*v_flow_2D_local_mag*self.rho
 
+		term = torch.matmul(self.mat2,A)
+
+	
+	
+		# term_min= -.1
+		# term_max= .1
+		# term = torch.clamp(term, term_min, term_max)
+
+	
+
+		Gamma = term*v_flow_2D_local_mag
+
+		LiftDist = Gamma*v_flow_2D_local_mag*self.rho
 
 		# exec_time = time.perf_counter() - now; 
 		Alpha_i = torch.matmul(self.mat3, A * self.vec3) 
+		
 		DragDist = v_flow_2D_local_mag*Gamma*Alpha_i*self.rho
 		DragDist = DragDist.type(torch.float)
 
-		lift_min=-0.1
-		lift_max=0.1
-		drag_min=-0.1
-		drag_max=0.1
+
+		lift_min = -0.1
+		lift_max = 0.1
+		drag_min = -0.1
+		drag_max = 0.1
+
 		LiftDist = torch.clamp(LiftDist, lift_min, lift_max)
 		DragDist = torch.clamp(DragDist, drag_min, drag_max)
 
@@ -403,8 +436,17 @@ class Bird(VecTask):
 		LD1 = torch.permute(LiftDist, (2,0,1))*self.force_scale
 		LiftDist_ = torch.reshape(LD1, (self.W*self.M,self.N,1))
 
+		if self.t < self.t_max:
+			self.LiftDist_buffer[self.t,:] = LiftDist_
+		self.data_save_dict["LiftDist"] = [self.LiftDist_buffer, "/LiftDist.pt"]
+
 		DD1 = torch.permute(DragDist, (2,0,1))*self.force_scale
 		DragDist_ = torch.reshape(DD1, (self.W*self.M,self.N,1))
+
+		# Clamp SCALARS, not vector comps!! Clamp the lift and drag dist
+
+
+		print(LiftDist_)
 
 		DOL1 = torch.permute(Direction_Of_Lift, (0,2,1,3))
 		DOD1 = torch.permute(Direction_Of_Drag, (0,2,1,3))
@@ -450,9 +492,8 @@ class Bird(VecTask):
 		###########################################################################################################
 
 	def pre_physics_step(self, actions):
-		self.actions = actions.clone().to(self.device)
+		self.actions = actions.clone().to(self.device)	
 		self.gym.set_dof_position_target_tensor(self.sim, gymtorch.unwrap_tensor(self.actions))
-
 
 		##################################### LIFTING LINE ###################################################
 		self.forces, self.torques, self.wing_CoMs, self.psi = self.lifting_line()
@@ -465,14 +506,30 @@ class Bird(VecTask):
 															gymtorch.unwrap_tensor(self.torques), 
 															gymapi.ENV_SPACE)
 
-	
+
+		if self.t < self.t_max:
+			self.DOFstates_buffer[self.t,:] = self.dof_state.view(self.num_envs, self.num_dof, 2)
+			self.Rootstates_buffer[self.t,:] = self.root_states.view(self.num_envs, 1, 13)
+			self.WingCOM_buffer[self.t,:] = self.wing_CoMs
+
+		self.data_save_dict["DOFstates"] = [self.DOFstates_buffer, "/DOFstates.pt"]
+		self.data_save_dict["Rootstates"] = [self.Rootstates_buffer, "/Rootstates.pt"]
+		self.data_save_dict["WingCOMs"] = [self.WingCOM_buffer, "/WingCOMs.pt"]
+
+
 
 	def post_physics_step(self):
 		self.progress_buf += 1
 
+		self.t += 1
+
 		env_ids = self.reset_buf.nonzero(as_tuple=False).squeeze(-1)
 		if len(env_ids) > 0:
 			self.reset_idx(env_ids)
+
+		# if self.t == self.t_max:
+		# 	self.save_data()
+		# 	exit()
 
 
 		# if self.viewer:
@@ -542,8 +599,11 @@ class Bird(VecTask):
 
 	def reset_idx(self, env_ids):
 		# thank u @Tbarkin121 !!
-		positions = torch.zeros((len(env_ids), self.num_dof), device=self.device)
-		velocities = torch.zeros((len(env_ids), self.num_dof), device=self.device)
+		# positions = torch.zeros((len(env_ids), self.num_dof), device=self.device)
+		# velocities = torch.zeros((len(env_ids), self.num_dof), device=self.device)
+
+		positions = (2.0*torch.rand((len(env_ids), self.num_dof), device=self.device)-1.0)
+		velocities = 0.1*(2.0*torch.rand((len(env_ids), self.num_dof), device=self.device)-1.0)
 
 		self.dof_pos[env_ids, :] = positions[:]
 		self.dof_vel[env_ids, :] = velocities[:]
@@ -564,7 +624,8 @@ class Bird(VecTask):
 		root_angvel_update = torch.zeros((len(env_ids), 3), device=self.device)
 
 		# SET INIT HoG CONTROL HERE!!! #
-		root_linvel_update[:,1] = -0.1	
+		root_linvel_update[:,1] = -0.1*torch.rand((len(env_ids)), device=self.device)
+
 
 		self.root_pos[env_ids, :] = root_pos_update
 		self.root_rot[env_ids, :] = root_rot_update
@@ -577,22 +638,48 @@ class Bird(VecTask):
 		self.reset_buf[env_ids] = 1
 		self.progress_buf[env_ids] = 0
 
+
+
+	def save_data(self):
+
+		path = "funfolder"
+
+		
+
+		for key in self.data_save_dict:
+			print(f"Saving {key}")
+			print(path+self.data_save_dict[key][1])
+			torch.save(self.data_save_dict[key][0], path+self.data_save_dict[key][1])
+
+		
+
+
 	
 #####################################################################
 ###=========================jit functions=========================###
 #####################################################################
 # @torch.jit.script
-def compute_bird_reward(obs_buf, psi, reset_buf, progress_buf, max_episode_length):
+def compute_bird_reward(obs_buf, psi, reset_buf, progress_buf, max_episode_length, root_pos, forces):
 	# type: (Tensor, Tensor, Tensor, Tensor, float) -> Tuple[Tensor, Tensor]
 
 	# Velocity rewards
+
+	z_fail = root_pos[:,2] < 0.2
+
 	base_vel = obs_buf[:, 0:3]/10
 	base_rot = obs_buf[:, 6:9] 
 
+	force_reward = -torch.sum(forces,dim=1)[:,1]/100.0
 	# speed_reward = torch.norm(base_vel, dim=1)
 	speed_reward = base_vel[:,1]**2 -base_vel[:,0]**2 -base_vel[:,2]**2
 	rot_reward = -base_rot[:,0]**2 -base_rot[:,1]**2 -base_rot[:,2]**2
 	psi_reward =  -torch.sum(torch.mean(psi,dim=2)**2, dim=0)
+
+
+	Euler0_fail = torch.abs(base_rot[:,0]) >  0.3
+	Euler1_fail = torch.abs(base_rot[:,1]) >  0.3
+	Euler2_fail = torch.abs(base_rot[:,2]) >  0.3
+
 
 	psi_fail = torch.abs(psi) >  1.0													#psi fail condition
 	psi_reset = torch.where(psi_fail, torch.ones_like(psi_fail), torch.zeros_like(psi_fail))
@@ -603,17 +690,19 @@ def compute_bird_reward(obs_buf, psi, reset_buf, progress_buf, max_episode_lengt
 	# reward = speed_reward + rot_reward + psi_reward
 	alive_reward = torch.ones_like(speed_reward, dtype=torch.float)
 
-	reward = speed_reward + rot_reward + psi_reward
+	reward = 0.1*speed_reward + rot_reward + psi_reward + force_reward
+
 	# reward = torch.where(psi_reset>0, torch.zeros_like(reward, dtype=torch.float), reward)
 	# # resets due to episode length
 	time_out = progress_buf >= max_episode_length - 1  # no terminal reward for time-outs
 	
 	# reset = time_out | psi_reset>0
+	# reset = time_out | Euler1_fail | Euler2_fail
 	reset = time_out
-	
 
 
 	# reset = time_out
+
 
 	# if(torch.any(time_out)):
 	# 	print('timeout reset')
