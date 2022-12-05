@@ -13,6 +13,7 @@ from tasks.base.vec_task import VecTask
 
 from isaacgym import gymutil, gymtorch, gymapi
 
+torch.set_printoptions(precision=10)
 
 class Bird(VecTask):
 
@@ -126,8 +127,8 @@ class Bird(VecTask):
 
 			bird_handle = self.gym.create_actor(env_ptr, bird_asset, pose, "bird", i, 1, 0)
 			dof_props = self.gym.get_actor_dof_properties(env_ptr, bird_handle)
-			dof_props['effort'][0] = 0.1
-			dof_props['effort'][1:3] = 1.0
+			# dof_props['effort'][0] = 0.1
+			# dof_props['effort'][1:3] = 1.0
 
 			self.gym.set_actor_dof_properties(env_ptr, bird_handle, dof_props)
 
@@ -225,7 +226,7 @@ class Bird(VecTask):
 
 		params = {"eps" : 1e-3,         # spacing from wing ends
 				  "wings" : 2,           # number of wings
-				  "cla" : 6.5,             # cla
+				  "cla" : 0.01,             # cla
 				  "rho" : 1000,             # density
 				  "S1" : 0.075,              # wing 1 semispan
 				  "S2" : 0.075,              # wing 2 semispan                  
@@ -390,11 +391,10 @@ class Bird(VecTask):
 
 	
 	
-		# term_min= -.1
-		# term_max= .1
+		# term_min= -.3
+		# term_max= .3
 		# term = torch.clamp(term, term_min, term_max)
 
-	
 
 		Gamma = term*v_flow_2D_local_mag
 
@@ -407,13 +407,13 @@ class Bird(VecTask):
 		DragDist = DragDist.type(torch.float)
 
 
-		lift_min = -0.1
-		lift_max = 0.1
-		drag_min = -0.1
-		drag_max = 0.1
+		# lift_min = -0.1
+		# lift_max = 0.1
+		# drag_min = -0.1
+		# drag_max = 0.1
 
-		LiftDist = torch.clamp(LiftDist, lift_min, lift_max)
-		DragDist = torch.clamp(DragDist, drag_min, drag_max)
+		# LiftDist = torch.clamp(LiftDist, lift_min, lift_max)
+		# DragDist = torch.clamp(DragDist, drag_min, drag_max)
 
 
 		########### LIFT AND DRAG UNIT VECTORS
@@ -444,9 +444,6 @@ class Bird(VecTask):
 		DragDist_ = torch.reshape(DD1, (self.W*self.M,self.N,1))
 
 		# Clamp SCALARS, not vector comps!! Clamp the lift and drag dist
-
-
-		print(LiftDist_)
 
 		DOL1 = torch.permute(Direction_Of_Lift, (0,2,1,3))
 		DOD1 = torch.permute(Direction_Of_Drag, (0,2,1,3))
@@ -624,7 +621,7 @@ class Bird(VecTask):
 		root_angvel_update = torch.zeros((len(env_ids), 3), device=self.device)
 
 		# SET INIT HoG CONTROL HERE!!! #
-		root_linvel_update[:,1] = -0.1*torch.rand((len(env_ids)), device=self.device)
+		root_linvel_update[:,1] = -0.5*torch.rand((len(env_ids)), device=self.device)
 
 
 		self.root_pos[env_ids, :] = root_pos_update

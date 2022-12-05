@@ -114,7 +114,7 @@ num_threads: 4
 solver_type: 1
 num_subscenes: 4
 test: true
-checkpoint: /home/milo/Documents/rluff/isaac/IsaacGymEnvs/isaacgymenvs/runs/pls15/nn/pls15.pth
+checkpoint: /home/milo/Documents/rluff/isaac/IsaacGymEnvs/isaacgymenvs/runs/pls17/nn/pls17.pth
 multi_gpu: false
 wandb_activate: false
 wandb_group: ''
