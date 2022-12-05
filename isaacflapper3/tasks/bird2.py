@@ -577,38 +577,9 @@ class Bird(VecTask):
 							dtype=torch.int32, 
 							device=self.device).repeat((self.num_envs, 1))
 
-		# apply upward force to one wing
-		# if self.t < 50:
-		# 	self.forces[:,:,:] = 0
-		# 	self.torques[:,:,:] = 0
-		# 	self.forces[:,0,1] = -10
-		# 	# self.forces[:,3,1] = -10
-		# 	# self.forces[:,4,1] = -10
-		# 	self.torques[:,:,:] = 0
-		# 	print(True)
-		# else:
-
-		# 	self.forces[:,:,:] = 0
-		# 	self.torques[:,:,:] = 0
-		# if self.t > 100:
-			# self.root_linvel[:,1] = -1e-3 #<--- this is how you set HoG control!
-			# self.root_linvel[:,0] = 0 #<--- this is how you set HoG control!
-			# self.root_angvel[:,:] = 0
-			# self.root_angvel[:,1] = 0
-			# self.root_angvel[:,2] = 0
-		# self.gym.set_actor_root_state_tensor_indexed(self.sim, 
-		# 											 gymtorch.unwrap_tensor(self.root_states),
-		# 											 gymtorch.unwrap_tensor(indices), len(indices))
-		# if self.t < 100:
-		# 	self.root_linvel[:,1] = -1
-		# 	print(self.root_states)
-		# 	self.gym.set_actor_root_state_tensor(self.sim, gymtorch.unwrap_tensor(self.root_states))
-
-		_actions = [-0.2*np.sin(0.02*self.t), 0.2*np.cos(0.02*self.t), 0.2*np.cos(0.02*self.t)]
-		# _actions = [0, 1*np.sin(10*self.t*0.01), 1*np.sin(10*self.t*0.01)]
-		# _actions = np.random.uniform(low=-1., high=1., size=(3,))
-		# _actions = [0,-1,-1]
-		# _actions = [-0.1*np.sin(10*self.t*0.01), 0, 0]
+		omega = 0.02
+		_actions = [0.25*np.pi*np.cos(omega*self.t), 0.4*np.pi*np.sin(omega*self.t), 0.4*np.pi*np.sin(omega*self.t)] # DRAG STRAT
+		# _actions = [0.2*np.sin(omega*self.t), 0.4*np.pi*np.sin(omega*self.t), 0.4*np.pi*np.sin(omega*self.t)]# LIFT STRAT
 
 		# _actions = [-0,0,0]
 		actions = to_torch(_actions, 
@@ -716,7 +687,7 @@ class Bird(VecTask):
 		root_angvel_update = torch.zeros((len(env_ids), 3), device=self.device)
 
 		# SET INIT HoG CONTROL HERE!!! #
-		root_linvel_update[:,1] = -1.
+		root_linvel_update[:,1] = 0
 
 		self.root_pos[env_ids, :] = root_pos_update
 		self.root_rot[env_ids, :] = root_rot_update
