@@ -3,7 +3,7 @@ task:
   physics_engine: ${..physics_engine}
   env:
     numEnvs: ${resolve_default:1024,${...num_envs}}
-    envSpacing: 2.5
+    envSpacing: 0.5
     maxEpisodeLength: 1000
     enableDebugVis: false
     clipObservations: 5.0
@@ -101,8 +101,8 @@ train:
       bounds_loss_coef: 0.0001
 task_name: ${task.name}
 experiment: ''
-num_envs: 100
-seed: 42
+num_envs: 6
+seed: 714
 torch_deterministic: false
 max_iterations: ''
 physics_engine: physx
@@ -114,7 +114,7 @@ num_threads: 4
 solver_type: 1
 num_subscenes: 4
 test: true
-checkpoint: /home/milo/Documents/rluff/isaac/IsaacGymEnvs/isaacgymenvs/runs/pls17/nn/pls17.pth
+checkpoint: /home/tyler/MachineLearning/git/rluff/isaac/IsaacGymEnvs/isaacgymenvs/runs/pls17.pth
 multi_gpu: false
 wandb_activate: false
 wandb_group: ''

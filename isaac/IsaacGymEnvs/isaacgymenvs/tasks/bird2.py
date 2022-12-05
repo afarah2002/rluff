@@ -2,7 +2,7 @@ import math
 import numpy as np
 import os
 import torch
-from pytorch3d.transforms import quaternion_to_matrix, matrix_to_euler_angles
+from pytorch3d.transforms import quaternion_to_matrix, matrix_to_euler_angles, quaternion_apply, quaternion_invert
 import sys
 import xml.etree.ElementTree as ET
 import time
@@ -38,6 +38,7 @@ class Bird(VecTask):
 		
 		self.actor_root_state = self.gym.acquire_actor_root_state_tensor(self.sim)
 		self.root_states = gymtorch.wrap_tensor(self.actor_root_state)
+		self.initial_root_states = self.root_states.clone()
 		self.root_pos = self.root_states.view(self.num_envs, 1, 13)[..., 0, 0:3] #num_envs, num_actors, 13 (pos,ori,Lvel,Avel)
 		self.root_rot = self.root_states.view(self.num_envs, 1, 13)[..., 0, 3:7] #num_envs, num_actors, 13 (pos,ori,Lvel,Avel)
 		self.root_linvel = self.root_states.view(self.num_envs, 1, 13)[..., 0, 7:10] #num_envs, num_actors, 13 (pos,ori,Lvel,Avel)
@@ -85,7 +86,8 @@ class Bird(VecTask):
 		self.sim = super().create_sim(self.device_id, self.graphics_device_id, self.physics_engine, self.sim_params)
 		self.dt = self.sim_params.dt
 		# self._create_ground_plane()
-		self._create_envs(self.num_envs, self.cfg["env"]['envSpacing'], int(np.sqrt(self.num_envs)))
+		# self._create_envs(self.num_envs, self.cfg["env"]['envSpacing'], int(np.sqrt(self.num_envs)))
+		self._create_envs(self.num_envs, self.cfg["env"]['envSpacing'], 6)
 
 	def _create_ground_plane(self):
 		plane_params = gymapi.PlaneParams()
@@ -549,47 +551,10 @@ class Bird(VecTask):
 
 		self.compute_observations()
 		self.compute_reward()
-		# print('Env 1 Euler Ang:')
-		# print(self.obs_buf[0, 6:9])
-		# print('REWARD')
-		# print(self.rew_buf)
+		# self.camera_follow()
 
-		# print('~~~~~~~~~~~~~~~~~~~~~~~')
-		# print('Reset buff')	
-		# print(self.reset_buf)
-		# print('Obs')
-		# print(self.obs_buf)
-		# print('Actions')
-		# print(self.actions)
-		# print('DOF pos')
-		# print(self.dof_pos)
-		# print('DOF vels')
-		# print(self.dof_vel)
-		# print('Psi')
-		# print(self.psi)
-		# print('forces')
-		# print(self.forces)
-		# print('torques')
-		# print(self.torques)
-		# print('ARE YOU NAN!?!?!')
-		# print('Reset buff')
-		# print(torch.any(torch.isnan(self.reset_buf)))
-		# print('Obs')
-		# print(torch.any(torch.isnan(self.obs_buf)))
-		# print('Actions')
-		# print(torch.any(torch.isnan(self.actions)))
-		# print('DOF pos')
-		# print(torch.any(torch.isnan(self.dof_pos)))
-		# print('DOF vels')
-		# print(torch.any(torch.isnan(self.dof_vel)))
-		# print('Psi')
-		# print(torch.any(torch.isnan(self.psi)))
-		# print('forces')
-		# print(torch.any(torch.isnan(self.forces)))
-		# print('torques')
-		# print(torch.any(torch.isnan(self.torques)))
-		
-
+		hold_ids = torch.arange(self.num_envs, device=self.device)
+		self.hold_pos(hold_ids)
 		
 
 		
@@ -599,8 +564,8 @@ class Bird(VecTask):
 		# positions = torch.zeros((len(env_ids), self.num_dof), device=self.device)
 		# velocities = torch.zeros((len(env_ids), self.num_dof), device=self.device)
 
-		positions = (2.0*torch.rand((len(env_ids), self.num_dof), device=self.device)-1.0)
-		velocities = 0.1*(2.0*torch.rand((len(env_ids), self.num_dof), device=self.device)-1.0)
+		positions = 0*(2.0*torch.rand((len(env_ids), self.num_dof), device=self.device)-1.0)
+		velocities = 0*0.1*(2.0*torch.rand((len(env_ids), self.num_dof), device=self.device)-1.0)
 
 		self.dof_pos[env_ids, :] = positions[:]
 		self.dof_vel[env_ids, :] = velocities[:]
@@ -621,7 +586,13 @@ class Bird(VecTask):
 		root_angvel_update = torch.zeros((len(env_ids), 3), device=self.device)
 
 		# SET INIT HoG CONTROL HERE!!! #
+		# root_linvel_update[:,1] = -0.5*torch.rand((len(env_ids)), device=self.device)
 		root_linvel_update[:,1] = -0.5*torch.rand((len(env_ids)), device=self.device)
+
+		temp_speeds = torch.reshape(torch.linspace(0.0,-0.5,6, device=self.device),(1,6))*torch.ones((6,1), device=self.device)
+		temp_speeds = torch.reshape(temp_speeds,(-1,))
+		root_linvel_update[:,1] = temp_speeds[env_ids]
+
 
 
 		self.root_pos[env_ids, :] = root_pos_update
@@ -648,8 +619,35 @@ class Bird(VecTask):
 			print(path+self.data_save_dict[key][1])
 			torch.save(self.data_save_dict[key][0], path+self.data_save_dict[key][1])
 
-		
+	def camera_follow(self):
+		self.env_2_watch = torch.tensor([0,],device=self.device)
+        
+		num_per_row = int(np.sqrt(self.num_envs))
+		spacing = 2
+		row_num = int(self.env_2_watch/num_per_row)*spacing
+		col_num = (self.env_2_watch % num_per_row)*spacing        
+		env_offset = gymapi.Vec3(col_num, row_num, 0.0)
+		cam_offset = torch.tensor([[4.0], [0.0], [2.5]], device=self.device)
 
+		print(self.root_states.shape)
+		# Quat = torch.unsqueeze(self.root_states[self.env_2_watch, 3:7], 0)
+		Quat = torch.unsqueeze(quaternion_invert(self.root_states[self.env_2_watch, 3:7]), 0)
+		Quat = torch.roll(Quat, 1, 1)
+		cam_offset_rot = torch.squeeze(quaternion_apply(Quat, torch.permute(cam_offset,(1,0))))
+		
+		cam_o = gymapi.Vec3(cam_offset_rot[0],cam_offset_rot[1],cam_offset_rot[2])
+		cam_pos = gymapi.Vec3(self.root_states[self.env_2_watch,0], self.root_states[self.env_2_watch,1], self.root_states[self.env_2_watch,2])
+
+		cam_target = gymapi.Vec3(self.root_states[self.env_2_watch,0], self.root_states[self.env_2_watch,1], self.root_states[self.env_2_watch,2])
+		self.gym.viewer_camera_look_at(self.viewer, None, cam_pos+cam_o+env_offset, cam_target+env_offset)
+		# self.gym.viewer_camera_look_at(self.viewer, None, cam_pos, cam_target)
+
+	def hold_pos(self, env_ids):
+		self.root_states[:, 0:3] = self.initial_root_states[:, 0:3]
+		env_ids_int32 = env_ids.to(dtype=torch.int32)
+		self.gym.set_actor_root_state_tensor_indexed(self.sim,
+											  gymtorch.unwrap_tensor(self.root_states),
+											  gymtorch.unwrap_tensor(env_ids_int32), len(env_ids_int32))
 
 	
 #####################################################################
